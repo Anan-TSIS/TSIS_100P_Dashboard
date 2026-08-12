@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>100P Cost-Saving Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="board-header">
+  <div class="nameplate">
+    <span class="nameplate-eyebrow">TSIS · 1510 / 1520</span>
+    <h1 class="nameplate-title">100P Cost-Saving Board</h1>
+  </div>
+  <div class="header-meta">
+    <span id="record-count" class="meta-pill">— records</span>
+    <span id="last-loaded" class="meta-pill muted">loading…</span>
+    <button id="refresh-btn" class="switch-btn" title="Reload data">⟳ Refresh</button>
+  </div>
+</header>
+
+<main>
+
+  <section class="control-panel" aria-label="Filters">
+    <div class="switch-group">
+      <label for="filter-fiscalYear">FISCAL YEAR</label>
+      <select id="filter-fiscalYear"><option value="">All</option></select>
+    </div>
+    <div class="switch-group">
+      <label for="filter-site">SITE</label>
+      <select id="filter-site"><option value="">All</option></select>
+    </div>
+    <div class="switch-group">
+      <label for="filter-dept">DEPT.</label>
+      <select id="filter-dept"><option value="">All</option></select>
+    </div>
+    <div class="switch-group">
+      <label for="filter-projectType">PROJECT TYPE</label>
+      <select id="filter-projectType"><option value="">All</option></select>
+    </div>
+    <div class="switch-group">
+      <label for="filter-month">MONTH</label>
+      <select id="filter-month"><option value="">All</option></select>
+    </div>
+    <button id="clear-filters-btn" class="switch-btn ghost">Clear filters</button>
+  </section>
+
+  <section class="kpi-row" aria-label="Summary">
+    <div class="kpi-plate accent-savings">
+      <span class="kpi-label">TOTAL CS.</span>
+      <span id="kpi-total-cs" class="kpi-value">—</span>
+      <span class="kpi-sub">฿ saved, filtered scope</span>
+    </div>
+    <div class="kpi-plate">
+      <span class="kpi-label">PROJECTS</span>
+      <span id="kpi-project-count" class="kpi-value">—</span>
+      <span class="kpi-sub">unique regist no.</span>
+    </div>
+    <div class="kpi-plate">
+      <span class="kpi-label">TOP DEPT.</span>
+      <span id="kpi-top-dept" class="kpi-value kpi-value-text">—</span>
+      <span id="kpi-top-dept-sub" class="kpi-sub">—</span>
+    </div>
+    <div class="kpi-plate accent-safety">
+      <span class="kpi-label">TOP TYPE</span>
+      <span id="kpi-top-type" class="kpi-value kpi-value-text">—</span>
+      <span id="kpi-top-type-sub" class="kpi-sub">—</span>
+    </div>
+  </section>
+
+  <section class="chart-row">
+    <div class="panel chart-panel chart-panel-wide">
+      <div class="panel-head">
+        <span class="panel-eyebrow">01 · TREND</span>
+        <h2>Monthly CS. — Jan – Dec</h2>
+      </div>
+      <canvas id="chart-trend" height="90"></canvas>
+    </div>
+  </section>
+
+  <section class="chart-row two-col">
+    <div class="panel chart-panel">
+      <div class="panel-head">
+        <span class="panel-eyebrow">02 · BY DEPT.</span>
+        <h2>CS. by Department</h2>
+      </div>
+      <canvas id="chart-dept" height="220"></canvas>
+    </div>
+    <div class="panel chart-panel">
+      <div class="panel-head">
+        <span class="panel-eyebrow">03 · BY TYPE</span>
+        <h2>CS. by Project Type</h2>
+      </div>
+      <canvas id="chart-type" height="220"></canvas>
+    </div>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="panel-head">
+      <span class="panel-eyebrow">04 · PROJECT LOG</span>
+      <h2>Projects</h2>
+      <span id="table-count" class="panel-head-sub"></span>
+    </div>
+    <div class="table-scroll">
+      <table id="project-table">
+        <thead>
+          <tr>
+            <th data-sort="registNo">Regist No.</th>
+            <th data-sort="site">Site</th>
+            <th data-sort="fiscalYear">FY</th>
+            <th data-sort="projectName">Project Name</th>
+            <th data-sort="dept">Dept.</th>
+            <th data-sort="projectType">Type</th>
+            <th data-sort="totalCs" class="num">Total CS.</th>
+          </tr>
+        </thead>
+        <tbody id="project-table-body">
+          <tr><td colspan="7" class="table-empty">Loading data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p id="error-banner" class="error-banner" hidden></p>
+
+</main>
+
+<footer class="board-footer">
+  <span>Source: Master_Log · Apps Script Web App</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

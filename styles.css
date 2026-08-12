@@ -353,7 +353,49 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   border-top: 1px solid var(--line);
 }
 
-/* ---------- Responsive ---------- */
+/* ---------- Large screen / TV monitor mode (43"+ viewed from 2-3m) ---------- */
+/* จอใหญ่ที่ browser เต็มจอมักกว้าง 1600px ขึ้นไป (แม้ความละเอียดจริงจะสูงกว่านั้น
+   เพราะ browser ยังคง render ที่ CSS pixel ที่ scale ตาม DPI) */
+@media (min-width: 1600px) {
+  body { font-size: 20px; }
+
+  .board-header { padding: 32px 56px; }
+  .nameplate-eyebrow { font-size: 16px; }
+  .nameplate-title { font-size: 46px; }
+  .meta-pill { font-size: 17px; padding: 10px 16px; }
+  .switch-btn { font-size: 17px; padding: 12px 20px; }
+
+  main { padding: 40px 56px 80px; max-width: 1900px; }
+
+  .control-panel { padding: 24px 28px; gap: 24px; }
+  .switch-group { min-width: 190px; }
+  .switch-group label { font-size: 14px; }
+  .switch-group select { font-size: 19px; padding: 12px 14px; }
+
+  .kpi-row { gap: 22px; }
+  .kpi-plate { padding: 26px 28px 22px; }
+  .kpi-label { font-size: 15px; }
+  .kpi-value { font-size: 56px; }
+  .kpi-value-text { font-size: 32px; }
+  .kpi-sub { font-size: 15px; }
+
+  .panel { padding: 24px 28px 28px; }
+  .panel-head { padding-bottom: 16px; margin-bottom: 18px; }
+  .panel-eyebrow { font-size: 15px; }
+  .panel-head h2 { font-size: 24px; }
+  .panel-head-sub { font-size: 16px; }
+
+  .chart-frame { height: 380px; }
+  .chart-frame-wide { height: 440px; }
+
+  table { font-size: 19px; }
+  thead th { font-size: 15px; padding: 14px 16px; }
+  tbody td { padding: 16px 16px; }
+
+  .board-footer { font-size: 15px; padding: 26px; }
+}
+
+
 
 @media (max-width: 900px) {
   .kpi-row { grid-template-columns: repeat(2, 1fr); }

@@ -5,6 +5,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxUkEqW7hit0LdS1QTViUkW
 
 const MONTH_ORDER = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
+// ใช้แสดงบนจอ monitor ค้างไว้ทั้งวัน — ดึงข้อมูลใหม่อัตโนมัติทุก 24 ชม. โดยไม่ต้องกด Refresh เอง
+// (ปุ่ม Refresh ด้วยมือยังใช้งานได้ตามปกติควบคู่กันไป)
+const AUTO_REFRESH_MS = 24 * 60 * 60 * 1000;
+
 const CHART_COLORS = {
   savings: '#5fbfae',
   savingsFaint: 'rgba(95,191,174,0.18)',
@@ -32,6 +36,7 @@ let charts = { trend: null, dept: null, type: null };
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
+  setInterval(loadData, AUTO_REFRESH_MS);
   document.getElementById('refresh-btn').addEventListener('click', loadData);
   document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
   ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {

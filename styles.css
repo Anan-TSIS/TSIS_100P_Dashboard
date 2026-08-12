@@ -167,7 +167,7 @@ th:focus-visible {
 
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -183,6 +183,12 @@ th:focus-visible {
   flex-direction: column;
   gap: 4px;
 }
+
+.kpi-plate-hero {
+  background: linear-gradient(160deg, var(--panel-raised), var(--panel));
+  border-top-width: 4px;
+}
+.kpi-plate-hero .kpi-value { font-size: clamp(28px, 3.2vw, 38px); }
 
 .kpi-plate::before,
 .kpi-plate::after {
@@ -376,6 +382,7 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   .kpi-plate { padding: 26px 28px 22px; }
   .kpi-label { font-size: 15px; }
   .kpi-value { font-size: 56px; }
+  .kpi-plate-hero .kpi-value { font-size: 68px; }
   .kpi-value-text { font-size: 32px; }
   .kpi-sub { font-size: 15px; }
 

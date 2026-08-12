@@ -14,8 +14,11 @@ const CHART_COLORS = {
   palette: ['#5fbfae', '#f2a63b', '#7c93c9', '#c97ba0', '#8fb96d', '#c9986b', '#6ea3c9', '#b98f6d']
 };
 
-Chart.defaults.font.family = "'IBM Plex Mono', monospace";
-Chart.defaults.color = CHART_COLORS.text;
+const CHARTJS_AVAILABLE = typeof Chart !== 'undefined';
+if (CHARTJS_AVAILABLE) {
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  Chart.defaults.color = CHART_COLORS.text;
+}
 
 // ============================================================
 // STATE
@@ -188,6 +191,7 @@ function renderKPIs(records) {
 }
 
 function renderTrendChart(records) {
+  if (!CHARTJS_AVAILABLE) return;
   const byMonth = groupSum(records, r => r.month, r => r.cs);
   const values = MONTH_ORDER.map(m => byMonth[m] || 0);
   const ctx = document.getElementById('chart-trend');
@@ -220,6 +224,7 @@ function renderTypeChart(records) {
 }
 
 function renderBreakdownChart(canvasId, grouped, chartsObj, key) {
+  if (!CHARTJS_AVAILABLE) return;
   const entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const ctx = document.getElementById(canvasId);
 

@@ -28,6 +28,7 @@ if (CHARTJS_AVAILABLE) {
 // STATE
 // ============================================================
 let RAW_RECORDS = [];
+let RAW_SALES = [];
 let sortState = { key: 'totalCs', dir: 'desc' };
 let charts = { trend: null, dept: null, type: null };
 
@@ -67,10 +68,11 @@ async function loadData() {
     if (!payload.success) throw new Error(payload.error || 'API returned success:false');
 
     RAW_RECORDS = (payload.data || []).map(normalizeRecord);
+    RAW_SALES = (payload.sales || []).map(normalizeSaleRecord);
     populateFilterOptions(RAW_RECORDS);
     render();
 
-    document.getElementById('record-count').textContent = `${payload.count} records`;
+    document.getElementById('record-count').textContent = `${payload.count} records · ${payload.salesCount ?? RAW_SALES.length} sales rows`;
     document.getElementById('last-loaded').textContent = `loaded ${new Date().toLocaleTimeString('th-TH')}`;
     hideError();
   } catch (err) {
@@ -89,6 +91,15 @@ function normalizeRecord(r) {
     costingElement: r.costingElement || '',
     month: r.month || '',
     cs: toNumber(r.cs)
+  };
+}
+
+function normalizeSaleRecord(r) {
+  return {
+    site: r.site != null ? String(r.site) : 'Unknown',
+    fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
+    month: r.month || '',
+    salesAmount: toNumber(r.salesAmount)
   };
 }
 
@@ -159,6 +170,16 @@ function getFilteredRecords(excludeKeys = []) {
   });
 }
 
+function getFilteredSales(excludeKeys = []) {
+  const f = getActiveFilters();
+  return RAW_SALES.filter(r => {
+    if (!excludeKeys.includes('fiscalYear') && f.fiscalYear && r.fiscalYear !== f.fiscalYear) return false;
+    if (!excludeKeys.includes('site') && f.site && r.site !== f.site) return false;
+    if (!excludeKeys.includes('month') && f.month && r.month !== f.month) return false;
+    return true;
+  });
+}
+
 function clearFilters() {
   ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {
     document.getElementById(`filter-${key}`).value = '';
@@ -171,15 +192,17 @@ function clearFilters() {
 // ============================================================
 function render() {
   const filtered = getFilteredRecords();
-  renderKPIs(filtered);
+  const filteredSales = getFilteredSales();
+  renderKPIs(filtered, filteredSales);
   renderTrendChart(getFilteredRecords(['month'])); // trend always shows all months in scope
   renderDeptChart(filtered);
   renderTypeChart(filtered);
   renderTable(filtered);
 }
 
-function renderKPIs(records) {
+function renderKPIs(records, salesRecords) {
   const totalCs = sum(records, r => r.cs);
+  const totalSales = sum(salesRecords, r => r.salesAmount);
   const projectCount = new Set(records.map(r => r.registNo)).size;
 
   const byDept = groupSum(records, r => r.dept, r => r.cs);
@@ -187,7 +210,18 @@ function renderKPIs(records) {
   const byType = groupSum(records, r => r.projectType, r => r.cs);
   const topType = topEntry(byType);
 
+  const csPercentEl = document.getElementById('kpi-cs-percent');
+  const csPercentSubEl = document.getElementById('kpi-cs-percent-sub');
+  if (totalSales > 0) {
+    csPercentEl.textContent = `${formatPercent((totalCs / totalSales) * 100)}%`;
+    csPercentSubEl.textContent = `${formatNumber(totalCs)} CS. ÷ ${formatNumber(totalSales)} sales`;
+  } else {
+    csPercentEl.textContent = '—';
+    csPercentSubEl.textContent = 'no sales data for this scope';
+  }
+
   document.getElementById('kpi-total-cs').textContent = formatNumber(totalCs);
+  document.getElementById('kpi-total-sales').textContent = formatNumber(totalSales);
   document.getElementById('kpi-project-count').textContent = projectCount;
   document.getElementById('kpi-top-dept').textContent = topDept ? topDept[0] : '—';
   document.getElementById('kpi-top-dept-sub').textContent = topDept ? `${formatNumber(topDept[1])} CS.` : 'no data';
@@ -340,6 +374,10 @@ function topEntry(grouped) {
 
 function formatNumber(n) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n || 0);
+}
+
+function formatPercent(n) {
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n || 0);
 }
 
 function escapeHtml(str) {

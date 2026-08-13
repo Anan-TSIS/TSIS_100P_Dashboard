@@ -862,9 +862,11 @@ const barValueLabelsPlugin = {
     try {
       const opts = chart.options.plugins && chart.options.plugins.barValueLabels;
       if (!opts || opts.display === false) return;
+      const formatValue = opts.mode === 'percent'
+        ? (v => `${formatPercent(v)}%`)
+        : (v => formatNumber(v));
       const { ctx } = chart;
       const horizontal = chart.options.indexAxis === 'y';
-      let drawnCount = 0;
 
       chart.data.datasets.forEach((dataset, datasetIndex) => {
         if (dataset.type === 'line') return; // เส้น target/commit ไม่ต้องมีตัวเลขกำกับ
@@ -895,10 +897,10 @@ const barValueLabelsPlugin = {
             ctx.textBaseline = 'middle';
             if (stacked) {
               ctx.textAlign = 'center';
-              ctx.fillText(opts.formatter(value), (x + base) / 2, y);
+              ctx.fillText(formatValue(value), (x + base) / 2, y);
             } else {
               ctx.textAlign = 'left';
-              ctx.fillText(opts.formatter(value), x + 4, y);
+              ctx.fillText(formatValue(value), x + 4, y);
             }
           } else {
             const barWidth = width || 24;
@@ -909,21 +911,15 @@ const barValueLabelsPlugin = {
             ctx.textAlign = 'center';
             if (stacked) {
               ctx.textBaseline = 'middle';
-              ctx.fillText(opts.formatter(value), x, (y + base) / 2);
+              ctx.fillText(formatValue(value), x, (y + base) / 2);
             } else {
               ctx.textBaseline = 'bottom';
-              ctx.fillText(opts.formatter(value), x, y - 3);
+              ctx.fillText(formatValue(value), x, y - 3);
             }
           }
           ctx.restore();
-          drawnCount++;
         });
       });
-
-      if (chart.__barValueLabelsLogged !== drawnCount) {
-        console.log(`[barValueLabels] วาดตัวเลขไปทั้งหมด ${drawnCount} จุด บน chart "${chart.canvas.id}"`);
-        chart.__barValueLabelsLogged = drawnCount;
-      }
     } catch (err) {
       console.error('barValueLabelsPlugin draw error (ตัวเลขบนแท่งอาจหายไปแต่กราฟยังใช้งานได้):', err);
     }
@@ -968,7 +964,7 @@ function renderTrendChart() {
         barValueLabels: {
           display: true,
           color: CHART_COLORS.text,
-          formatter: v => `${formatPercent(v)}%`
+          mode: 'percent'
         },
         tooltip: {
           backgroundColor: '#1e252b',
@@ -1045,7 +1041,7 @@ function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {
       barValueLabels: {
         display: true,
         color: CHART_COLORS.text,
-        formatter: v => formatNumber(v)
+        mode: 'number'
       },
       tooltip: {
         backgroundColor: '#1e252b',

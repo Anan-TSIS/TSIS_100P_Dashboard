@@ -180,6 +180,16 @@ a { color: inherit; }
   flex-direction: column;
   gap: 4px;
   padding: clamp(16px, 3vw, 28px) 12px;
+  overflow: hidden;
+  transition: flex-basis 0.15s ease, padding 0.15s ease, opacity 0.15s ease;
+}
+
+.app-shell.sidebar-hidden .sidebar {
+  flex-basis: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-link {
@@ -230,6 +240,7 @@ main {
   }
   .sidebar-link { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
   .sidebar-link.active { border-left-color: transparent; border-bottom-color: var(--accent-safety); }
+  .app-shell.sidebar-hidden .sidebar { display: none; }
 }
 
 /* ---------- Control panel / filters ---------- */
@@ -297,6 +308,8 @@ th:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .kpi-plate-hero {
@@ -330,10 +343,20 @@ th:focus-visible {
 
 .kpi-value {
   font-family: var(--font-display);
-  font-size: clamp(22px, 2.6vw, 30px);
+  font-size: clamp(20px, 2.6vw, 30px);
   font-weight: 600;
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.kpi-value-text { font-size: 18px; text-transform: none; }
+.kpi-value-text { font-size: 18px; text-transform: none; white-space: normal; overflow-wrap: break-word; }
+
+@supports (container-type: inline-size) {
+  .kpi-value { font-size: clamp(16px, 13cqi, 30px); }
+  .kpi-plate-hero .kpi-value { font-size: clamp(18px, 14cqi, 38px); }
+}
 
 .kpi-sub {
   font-family: var(--font-mono);
@@ -544,8 +567,8 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   .kpi-row { gap: 22px; }
   .kpi-plate { padding: 26px 28px 22px; }
   .kpi-label { font-size: 15px; }
-  .kpi-value { font-size: 56px; }
-  .kpi-plate-hero .kpi-value { font-size: 68px; }
+  .kpi-value { font-size: clamp(24px, 13cqi, 56px); }
+  .kpi-plate-hero .kpi-value { font-size: clamp(26px, 14cqi, 68px); }
   .kpi-value-text { font-size: 32px; }
   .kpi-sub { font-size: 15px; }
 

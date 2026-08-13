@@ -49,6 +49,9 @@
 
 * { box-sizing: border-box; }
 
+/* กันบั๊กซ้ำ: class ไหนก็ตามที่ set display:flex/block/grid ไว้ตรงๆ จะไม่ไปทับ [hidden] อีก */
+[hidden] { display: none !important; }
+
 html { scroll-behavior: smooth; }
 
 body {
@@ -282,36 +285,36 @@ main {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 16px;
+  gap: 12px;
   background: var(--panel);
-  border: 2px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 16px 18px;
-  margin-bottom: 22px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
 }
 
 .switch-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 140px;
+  gap: 4px;
+  min-width: 120px;
 }
 
 .switch-group label {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 9.5px;
   letter-spacing: 0.12em;
   color: var(--text-muted);
 }
 
 .switch-group select {
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 12.5px;
   color: var(--text-primary);
   background: var(--panel-raised);
-  border: 2px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 8px 10px;
+  padding: 6px 8px;
   appearance: none;
   cursor: pointer;
 }
@@ -725,12 +728,12 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
 .chart-controls {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
   flex-basis: 100%;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 2px solid var(--line);
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
 }
 
 .view-mode-group {
@@ -738,6 +741,28 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   border: 2px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
+}
+
+.split-by-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.split-by-inline label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.split-by-inline select {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 6px 9px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
 .view-mode-btn {

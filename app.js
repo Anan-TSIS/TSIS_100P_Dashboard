@@ -433,10 +433,12 @@ function normalizeSaleRecord(r) {
 }
 
 function normalizeTargetRecord(r) {
+  // หมายเหตุ: cell ใน Input_target น่าจะ format เป็น % (Google Sheets เก็บค่าดิบเป็นเศษส่วน
+  // เช่น cell โชว์ "1%" แต่ค่าดิบที่ gviz ส่งมาคือ 0.01) จึงต้องคูณ 100 ก่อนใช้
   return {
     fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
-    commitPercent: toNumber(r.commitPercent),
-    targetPercent: toNumber(r.targetPercent)
+    commitPercent: toNumber(r.commitPercent) * 100,
+    targetPercent: toNumber(r.targetPercent) * 100
   };
 }
 
@@ -719,24 +721,38 @@ function buildModeDatasets(filters, colorFamily, labelSuffix) {
  * เส้น % Target — แสดงเฉพาะตอนเลือก Fiscal Year เดียวจริงๆ (ไม่ใช่ All)
  * และมีข้อมูลปีนั้นอยู่ใน sheet Input_target
  */
-function buildTargetDataset() {
+function buildTargetLineDatasets() {
   const fy = getActiveFilters().fiscalYear;
-  if (!fy) return null;
+  if (!fy) return [];
   const target = RAW_TARGETS.find(t => t.fiscalYear === fy);
-  if (!target) return null;
+  if (!target) return [];
 
-  return {
+  const lines = [];
+  lines.push({
     type: 'line',
     label: `Target ${fy}`,
     data: Array(13).fill(target.targetPercent),
     borderColor: CHART_COLORS.safety,
-    borderDash: [6, 4],
-    borderWidth: 2,
+    borderDash: [5, 3],
+    borderWidth: 1.25,
     pointRadius: 0,
     fill: false,
     order: -1,
     datalabels: { display: false }
-  };
+  });
+  lines.push({
+    type: 'line',
+    label: `Commit ${fy}`,
+    data: Array(13).fill(target.commitPercent),
+    borderColor: CHART_COLORS.savings,
+    borderDash: [2, 3],
+    borderWidth: 1.25,
+    pointRadius: 0,
+    fill: false,
+    order: -1,
+    datalabels: { display: false }
+  });
+  return lines;
 }
 
 function renderTrendChart() {
@@ -753,8 +769,8 @@ function renderTrendChart() {
     hasData = hasData || secondary.hasData;
   }
 
-  const targetDs = buildTargetDataset();
-  if (targetDs) datasets = datasets.concat([targetDs]);
+  const targetLines = buildTargetLineDatasets();
+  datasets = datasets.concat(targetLines);
 
   setChartEmptyState('chart-trend-empty', !hasData);
 

@@ -1,19 +1,50 @@
 :root {
-  --bg: #14181c;
-  --panel: #1e252b;
-  --panel-raised: #242c33;
-  --line: #2a3540;
-  --accent-safety: #f2a63b;
-  --accent-safety-dim: #7a5a24;
-  --accent-savings: #5fbfae;
-  --accent-savings-dim: #305950;
-  --text-primary: #eceff1;
-  --text-muted: #7c8791;
-  --text-faint: #4d5761;
+  /* ---- Light theme (default) ---- */
+  --bg: #f2f2f2;
+  --panel: #ffffff;
+  --panel-raised: #fafafa;
+  --line: #dcdcdc;
+  --accent-safety: #d95323;
+  --accent-safety-dim: #f0b79a;
+  --accent-savings: #038c3e;
+  --accent-savings-dim: #a8d9bb;
+  --text-primary: #1a1a1a;
+  --text-muted: #5f5f5f;
+  --text-faint: #9a9a9a;
+  --corner-1: rgba(3, 140, 62, 0.14);
+  --corner-2: rgba(217, 83, 35, 0.14);
+  --error-bg: #fdecea;
+  --error-border: #e2a394;
+  --error-text: #9c3b21;
+  --cs-negative: #c0442a;
+  --hover-tint: rgba(217, 83, 35, 0.08);
+
   --radius: 3px;
   --font-display: 'Oswald', sans-serif;
   --font-body: 'IBM Plex Sans', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
+}
+
+[data-theme="dark"] {
+  /* ---- Dark theme ---- */
+  --bg: #14181c;
+  --panel: #1e252b;
+  --panel-raised: #242c33;
+  --line: #2a3540;
+  --accent-safety: #f2914d;
+  --accent-safety-dim: #7a4a24;
+  --accent-savings: #3fcf82;
+  --accent-savings-dim: #1f5c3a;
+  --text-primary: #eceff1;
+  --text-muted: #9aa4ad;
+  --text-faint: #647079;
+  --corner-1: rgba(3, 140, 62, 0.26);
+  --corner-2: rgba(217, 83, 35, 0.26);
+  --error-bg: #2a1a15;
+  --error-border: #7a3a2c;
+  --error-text: #f0a98c;
+  --cs-negative: #e0714f;
+  --hover-tint: rgba(242, 145, 77, 0.08);
 }
 
 * { box-sizing: border-box; }
@@ -23,21 +54,16 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   background:
-    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 40px,
-    linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 40px 100%,
+    radial-gradient(circle at 0% 0%, var(--corner-1), transparent 45%),
+    radial-gradient(circle at 100% 100%, var(--corner-2), transparent 45%),
     var(--bg);
   background-attachment: fixed;
-  background-blend-mode: overlay, overlay, normal;
-  opacity: 1;
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.45;
   min-height: 100vh;
-}
-
-body::before {
-  content: '';
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 a { color: inherit; }
@@ -52,8 +78,22 @@ a { color: inherit; }
   gap: 12px;
   padding: 22px clamp(16px, 4vw, 40px);
   border-bottom: 2px solid var(--accent-safety);
-  background: linear-gradient(180deg, rgba(30,37,43,0.9), rgba(30,37,43,0.55));
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
 }
+
+.nameplate {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.nameplate-logo {
+  height: 44px;
+  width: auto;
+  display: block;
+}
+
+.nameplate-text { display: flex; flex-direction: column; }
 
 .nameplate-eyebrow {
   display: block;
@@ -103,11 +143,24 @@ a { color: inherit; }
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;
 }
-.switch-btn:hover { background: #2c221389; transform: translateY(-1px); }
+.switch-btn:hover { background: var(--hover-tint); transform: translateY(-1px); }
 .switch-btn.ghost {
   border-color: var(--line);
   color: var(--text-muted);
 }
+
+.theme-toggle-btn {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1;
+  padding: 7px 11px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.theme-toggle-btn:hover { background: var(--hover-tint); }
 
 /* ---------- Layout ---------- */
 
@@ -335,16 +388,16 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
 }
 
 .cs-positive { color: var(--accent-savings); }
-.cs-negative { color: #d9714e; }
+.cs-negative { color: var(--cs-negative); }
 
 /* ---------- Misc ---------- */
 
 .error-banner {
   margin-top: 16px;
   padding: 12px 14px;
-  border: 1px solid #7a3a2c;
-  background: #2a1a15;
-  color: #f0a98c;
+  border: 1px solid var(--error-border);
+  background: var(--error-bg);
+  color: var(--error-text);
   border-radius: var(--radius);
   font-family: var(--font-mono);
   font-size: 12.5px;

@@ -9,19 +9,39 @@ const MONTH_ORDER = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT'
 // (ปุ่ม Refresh ด้วยมือยังใช้งานได้ตามปกติควบคู่กันไป)
 const AUTO_REFRESH_MS = 24 * 60 * 60 * 1000;
 
-const CHART_COLORS = {
-  savings: '#5fbfae',
-  savingsFaint: 'rgba(95,191,174,0.18)',
-  safety: '#f2a63b',
-  grid: '#2a3540',
-  text: '#7c8791',
-  palette: ['#5fbfae', '#f2a63b', '#7c93c9', '#c97ba0', '#8fb96d', '#c9986b', '#6ea3c9', '#b98f6d']
+const CHART_COLORS_BY_THEME = {
+  light: {
+    savings: '#038c3e',
+    savingsFaint: 'rgba(3,140,62,0.16)',
+    safety: '#d95323',
+    grid: '#dcdcdc',
+    text: '#5f5f5f',
+    palette: ['#038c3e', '#d95323', '#2f6fb0', '#a2478a', '#5a8f3a', '#b07a2f', '#3f8fa8', '#8a6b3f']
+  },
+  dark: {
+    savings: '#3fcf82',
+    savingsFaint: 'rgba(63,207,130,0.18)',
+    safety: '#f2914d',
+    grid: '#2a3540',
+    text: '#9aa4ad',
+    palette: ['#3fcf82', '#f2914d', '#7c93c9', '#c97ba0', '#8fb96d', '#c9986b', '#6ea3c9', '#b98f6d']
+  }
 };
+
+let CHART_COLORS = CHART_COLORS_BY_THEME.light;
 
 const CHARTJS_AVAILABLE = typeof Chart !== 'undefined';
 if (CHARTJS_AVAILABLE) {
   Chart.defaults.font.family = "'IBM Plex Mono', monospace";
-  Chart.defaults.color = CHART_COLORS.text;
+}
+
+function getCurrentTheme() {
+  return document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function applyChartTheme() {
+  CHART_COLORS = CHART_COLORS_BY_THEME[getCurrentTheme()];
+  if (CHARTJS_AVAILABLE) Chart.defaults.color = CHART_COLORS.text;
 }
 
 // ============================================================
@@ -36,9 +56,11 @@ let charts = { trend: null, dept: null, type: null };
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   loadData();
   setInterval(loadData, AUTO_REFRESH_MS);
   document.getElementById('refresh-btn').addEventListener('click', loadData);
+  document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
   document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
   ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {
     document.getElementById(`filter-${key}`).addEventListener('change', render);
@@ -55,6 +77,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// ============================================================
+// THEME
+// ============================================================
+const THEME_STORAGE_KEY = 'tsis100p-theme';
+
+function initTheme() {
+  let saved = 'light';
+  try { saved = localStorage.getItem(THEME_STORAGE_KEY) || 'light'; } catch (e) { /* ignore */ }
+  setTheme(saved, false);
+}
+
+function toggleTheme() {
+  setTheme(getCurrentTheme() === 'dark' ? 'light' : 'dark', true);
+}
+
+function setTheme(theme, rerender) {
+  document.body.setAttribute('data-theme', theme);
+  document.getElementById('theme-toggle-btn').textContent = theme === 'dark' ? '☀️' : '🌙';
+  try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) { /* ignore */ }
+  applyChartTheme();
+  if (rerender) render();
+}
 
 // ============================================================
 // DATA LOADING

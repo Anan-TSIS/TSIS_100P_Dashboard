@@ -9,16 +9,20 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-theme="light">
 
 <header class="board-header">
   <div class="nameplate">
-    <span class="nameplate-eyebrow">TSIS · 1510 / 1520</span>
-    <h1 class="nameplate-title">100P Cost-Saving Board</h1>
+    <img class="nameplate-logo" src="TSIS_Logo.png" alt="Interseats logo">
+    <div class="nameplate-text">
+      <span class="nameplate-eyebrow">TSIS · 1510 / 1520</span>
+      <h1 class="nameplate-title">100P Cost-Saving Board</h1>
+    </div>
   </div>
   <div class="header-meta">
     <span id="record-count" class="meta-pill">— records</span>
     <span id="last-loaded" class="meta-pill muted">loading…</span>
+    <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle light/dark mode">🌙</button>
     <button id="refresh-btn" class="switch-btn" title="Reload data">⟳ Refresh</button>
   </div>
 </header>

@@ -77,23 +77,24 @@ a { color: inherit; }
   flex-wrap: wrap;
   gap: 12px;
   padding: 22px clamp(16px, 4vw, 40px);
-  border-bottom: 2px solid var(--accent-safety);
+  border-bottom: 3px solid var(--accent-safety);
   background: linear-gradient(180deg, var(--panel-raised), var(--panel));
 }
 
 .nameplate {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .nameplate-logo {
-  height: 44px;
+  height: 58px;
   width: auto;
   display: block;
+  flex-shrink: 0;
 }
 
-.nameplate-text { display: flex; flex-direction: column; }
+.nameplate-text { display: flex; flex-direction: column; justify-content: center; }
 
 .nameplate-eyebrow {
   display: block;
@@ -124,7 +125,7 @@ a { color: inherit; }
   font-family: var(--font-mono);
   font-size: 12px;
   padding: 6px 10px;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius);
   color: var(--text-primary);
   background: var(--panel);
@@ -155,7 +156,7 @@ a { color: inherit; }
   line-height: 1;
   padding: 7px 11px;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   background: var(--panel-raised);
   color: var(--text-primary);
   cursor: pointer;
@@ -178,7 +179,7 @@ main {
   align-items: end;
   gap: 16px;
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius);
   padding: 16px 18px;
   margin-bottom: 22px;
@@ -203,7 +204,7 @@ main {
   font-size: 13.5px;
   color: var(--text-primary);
   background: var(--panel-raised);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius);
   padding: 8px 10px;
   appearance: none;
@@ -228,8 +229,8 @@ th:focus-visible {
 .kpi-plate {
   position: relative;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-top: 3px solid var(--text-faint);
+  border: 2px solid var(--line);
+  border-top: 4px solid var(--text-faint);
   border-radius: var(--radius);
   padding: 16px 18px 14px;
   display: flex;
@@ -290,7 +291,7 @@ th:focus-visible {
 
 .panel {
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   border-radius: var(--radius);
   padding: 16px 18px 18px;
 }
@@ -301,7 +302,7 @@ th:focus-visible {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--line);
   padding-bottom: 10px;
 }
 
@@ -337,6 +338,18 @@ th:focus-visible {
 }
 .chart-frame-wide { height: 320px; }
 
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
 @media (max-width: 560px) {
   .chart-frame { height: 220px; }
   .chart-frame-wide { height: 240px; }
@@ -361,7 +374,7 @@ thead th {
   letter-spacing: 0.08em;
   color: var(--text-muted);
   padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--line);
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
@@ -371,7 +384,7 @@ thead th.num { text-align: right; }
 
 tbody td {
   padding: 9px 10px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 2px solid var(--line);
   font-family: var(--font-body);
   white-space: nowrap;
 }
@@ -401,6 +414,41 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   border-radius: var(--radius);
   font-family: var(--font-mono);
   font-size: 12.5px;
+}
+
+/* ---------- Loading bar (sliding accent stripe while fetching) ---------- */
+
+.loading-bar {
+  height: 3px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  background: transparent;
+}
+
+.loading-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-savings), var(--accent-safety));
+  opacity: 0;
+}
+
+.loading-bar.active::before {
+  opacity: 1;
+  animation: loadingSlide 1.1s ease-in-out infinite;
+}
+
+@keyframes loadingSlide {
+  0%   { left: -30%; }
+  100% { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar.active::before { animation: none; opacity: 1; left: 0; width: 100%; }
 }
 
 .board-footer {

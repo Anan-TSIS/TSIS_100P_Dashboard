@@ -1,552 +1,657 @@
-// ============================================================
-// CONFIG
-// ============================================================
-// เปลี่ยนมาดึงข้อมูลตรงจาก Google Sheets ผ่าน Google Visualization API (gviz)
-// แทน Apps Script Web App (doGet) เพราะ gviz เป็นฟีเจอร์หลักของ Sheets เอง
-// เสถียรกว่ามาก ไม่มี cold start / ไม่มีปัญหา redirect ล่มเป็นระยะแบบ Apps Script
-//
-// ข้อกำหนด: ไฟล์ Google Sheet ต้องแชร์เป็น "Anyone with the link — Viewer"
-// (Apps Script ยังใช้ตามปกติสำหรับปุ่ม "Generate All" ใน Sheets ไม่กระทบส่วนนี้)
-const SHEET_ID = '1ZSIheE3Tva3UgevtJwu1u-RXL3MyCHDwCSRXC_C4o9Y';
-const GVIZ_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+:root {
+  /* ---- Light theme (default) ---- */
+  --bg: #f2f2f2;
+  --panel: #ffffff;
+  --panel-raised: #fafafa;
+  --line: #dcdcdc;
+  --accent-safety: #d95323;
+  --accent-safety-dim: #f0b79a;
+  --accent-savings: #038c3e;
+  --accent-savings-dim: #a8d9bb;
+  --text-primary: #1a1a1a;
+  --text-muted: #5f5f5f;
+  --text-faint: #9a9a9a;
+  --corner-1: rgba(3, 140, 62, 0.14);
+  --corner-2: rgba(217, 83, 35, 0.14);
+  --error-bg: #fdecea;
+  --error-border: #e2a394;
+  --error-text: #9c3b21;
+  --cs-negative: #c0442a;
+  --hover-tint: rgba(217, 83, 35, 0.08);
 
-const MASTER_LOG_SHEET_NAME = 'Master_Log';
-const MASTER_LOG_SALE_SHEET_NAME = 'Master_Log_sale';
+  --radius: 3px;
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
 
-// ลำดับคอลัมน์ต้องตรงกับลำดับจริงในแต่ละ sheet (ซ้าย → ขวา)
-const MASTER_LOG_COLUMN_KEYS = [
-  'site', 'fiscalYear', 'registNo', 'projectType', 'projectName', 'dept',
-  'material', 'materialName', 'rawMaterial', 'createDate', 'postingDate',
-  'costingElement', 'before', 'month', 'after', 'diff', 'qty', 'cs'
-];
-const MASTER_LOG_SALE_COLUMN_KEYS = ['fiscalYear', 'site', 'month', 'salesAmount'];
+[data-theme="dark"] {
+  /* ---- Dark theme ---- */
+  --bg: #14181c;
+  --panel: #1e252b;
+  --panel-raised: #242c33;
+  --line: #2a3540;
+  --accent-safety: #f2914d;
+  --accent-safety-dim: #7a4a24;
+  --accent-savings: #3fcf82;
+  --accent-savings-dim: #1f5c3a;
+  --text-primary: #eceff1;
+  --text-muted: #9aa4ad;
+  --text-faint: #647079;
+  --corner-1: rgba(3, 140, 62, 0.26);
+  --corner-2: rgba(217, 83, 35, 0.26);
+  --error-bg: #2a1a15;
+  --error-border: #7a3a2c;
+  --error-text: #f0a98c;
+  --cs-negative: #e0714f;
+  --hover-tint: rgba(242, 145, 77, 0.08);
+}
 
-const MONTH_ORDER = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+* { box-sizing: border-box; }
 
-// ใช้แสดงบนจอ monitor ค้างไว้ทั้งวัน — ดึงข้อมูลใหม่อัตโนมัติทุก 24 ชม. โดยไม่ต้องกด Refresh เอง
-// (ปุ่ม Refresh ด้วยมือยังใช้งานได้ตามปกติควบคู่กันไป)
-const AUTO_REFRESH_MS = 24 * 60 * 60 * 1000;
+html { scroll-behavior: smooth; }
 
-const CHART_COLORS_BY_THEME = {
-  light: {
-    savings: '#038c3e',
-    savingsFaint: 'rgba(3,140,62,0.16)',
-    safety: '#d95323',
-    grid: '#dcdcdc',
-    text: '#5f5f5f',
-    palette: ['#038c3e', '#d95323', '#2f6fb0', '#a2478a', '#5a8f3a', '#b07a2f', '#3f8fa8', '#8a6b3f']
-  },
-  dark: {
-    savings: '#3fcf82',
-    savingsFaint: 'rgba(63,207,130,0.18)',
-    safety: '#f2914d',
-    grid: '#2a3540',
-    text: '#9aa4ad',
-    palette: ['#3fcf82', '#f2914d', '#7c93c9', '#c97ba0', '#8fb96d', '#c9986b', '#6ea3c9', '#b98f6d']
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 0% 0%, var(--corner-1), transparent 45%),
+    radial-gradient(circle at 100% 100%, var(--corner-2), transparent 45%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  min-height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+a { color: inherit; }
+
+/* ---------- Header ---------- */
+
+.board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 22px clamp(16px, 4vw, 40px);
+  border-bottom: 3px solid var(--accent-safety);
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+}
+
+.nameplate {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nameplate-logo {
+  height: 58px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+
+.nameplate-text { display: flex; flex-direction: column; justify-content: center; }
+
+.nameplate-eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--accent-safety);
+  margin-bottom: 4px;
+}
+
+.nameplate-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(22px, 3.4vw, 32px);
+  letter-spacing: 0.01em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.meta-pill {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  background: var(--panel);
+}
+.meta-pill.muted { color: var(--text-muted); }
+
+.switch-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent-safety-dim);
+  background: var(--panel-raised);
+  color: var(--accent-safety);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.switch-btn:hover { background: var(--hover-tint); transform: translateY(-1px); }
+.switch-btn.ghost {
+  border-color: var(--line);
+  color: var(--text-muted);
+}
+
+.theme-toggle-btn {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1;
+  padding: 7px 11px;
+  border-radius: var(--radius);
+  border: 2px solid var(--line);
+  background: var(--panel-raised);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.theme-toggle-btn:hover { background: var(--hover-tint); }
+
+/* ---------- Layout ---------- */
+
+.app-shell {
+  display: flex;
+  align-items: flex-start;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.sidebar {
+  flex: 0 0 200px;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: clamp(16px, 3vw, 28px) 12px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 11px 12px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.sidebar-link:hover { background: var(--hover-tint); color: var(--text-primary); }
+.sidebar-link.active {
+  background: var(--panel);
+  border-left-color: var(--accent-safety);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.sidebar-link-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-savings);
+}
+
+main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: clamp(16px, 3vw, 32px) clamp(16px, 4vw, 40px) 60px;
+}
+
+.tab-panel[hidden] { display: none; }
+
+@media (max-width: 900px) {
+  .app-shell { flex-direction: column; }
+  .sidebar {
+    position: static;
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    border-bottom: 2px solid var(--line);
   }
-};
-
-let CHART_COLORS = CHART_COLORS_BY_THEME.light;
-
-const CHARTJS_AVAILABLE = typeof Chart !== 'undefined';
-if (CHARTJS_AVAILABLE) {
-  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  .sidebar-link { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+  .sidebar-link.active { border-left-color: transparent; border-bottom-color: var(--accent-safety); }
 }
 
-function getCurrentTheme() {
-  return document.body.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+/* ---------- Control panel / filters ---------- */
+
+.control-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 22px;
 }
 
-function applyChartTheme() {
-  CHART_COLORS = CHART_COLORS_BY_THEME[getCurrentTheme()];
-  if (CHARTJS_AVAILABLE) Chart.defaults.color = CHART_COLORS.text;
+.switch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
 }
 
-// ============================================================
-// STATE
-// ============================================================
-let RAW_RECORDS = [];
-let defaultFiltersApplied = false;
-let RAW_SALES = [];
-let sortState = { key: 'totalCs', dir: 'desc' };
-let charts = { trend: null, dept: null, type: null };
-
-// ============================================================
-// INIT
-// ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-  initTheme();
-  loadData();
-  setInterval(loadData, AUTO_REFRESH_MS);
-  document.getElementById('refresh-btn').addEventListener('click', loadData);
-  document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
-  document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
-  ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {
-    document.getElementById(`filter-${key}`).addEventListener('change', () => {
-      updateFilterOptions();
-      render();
-    });
-  });
-  document.querySelectorAll('#project-table thead th[data-sort]').forEach(th => {
-    th.addEventListener('click', () => {
-      const key = th.dataset.sort;
-      if (sortState.key === key) {
-        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
-      } else {
-        sortState = { key, dir: key === 'totalCs' ? 'desc' : 'asc' };
-      }
-      renderTable(getFilteredRecords());
-    });
-  });
-});
-
-// ============================================================
-// THEME
-// ============================================================
-const THEME_STORAGE_KEY = 'tsis100p-theme';
-
-function initTheme() {
-  let saved = 'light';
-  try { saved = localStorage.getItem(THEME_STORAGE_KEY) || 'light'; } catch (e) { /* ignore */ }
-  setTheme(saved, false);
+.switch-group label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
 }
 
-function toggleTheme() {
-  setTheme(getCurrentTheme() === 'dark' ? 'light' : 'dark', true);
+.switch-group select {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  background: var(--panel-raised);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  appearance: none;
+  cursor: pointer;
+}
+.switch-group select:focus-visible,
+.switch-btn:focus-visible,
+th:focus-visible {
+  outline: 2px solid var(--accent-savings);
+  outline-offset: 2px;
 }
 
-function setTheme(theme, rerender) {
-  document.body.setAttribute('data-theme', theme);
-  document.getElementById('theme-toggle-btn').textContent = theme === 'dark' ? '☀️' : '🌙';
-  try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) { /* ignore */ }
-  applyChartTheme();
-  if (rerender) render();
+/* ---------- KPI plates ---------- */
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
 }
 
-// ============================================================
-// DATA LOADING
-// ============================================================
-const MAX_FETCH_RETRIES = 3;
-const RETRY_DELAY_MS = 1200; // เพิ่มขึ้นทีละรอบ (1.2s, 2.4s, 3.6s)
-
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+.kpi-plate {
+  position: relative;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-top: 4px solid var(--text-faint);
+  border-radius: var(--radius);
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-function gvizUrl(sheetName) {
-  return `${GVIZ_BASE}?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1`;
+.kpi-plate-hero {
+  background: linear-gradient(160deg, var(--panel-raised), var(--panel));
+  border-top-width: 4px;
+}
+.kpi-plate-hero .kpi-value { font-size: clamp(28px, 3.2vw, 38px); }
+
+.kpi-plate::before,
+.kpi-plate::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.kpi-plate::before { left: 8px; }
+.kpi-plate::after { right: 8px; }
+
+.kpi-plate.accent-savings { border-top-color: var(--accent-savings); }
+.kpi-plate.accent-safety { border-top-color: var(--accent-safety); }
+
+.kpi-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
 }
 
-/**
- * gviz ตอบกลับมาเป็น text ห่อด้วย google.visualization.Query.setResponse({...});
- * ต้องแกะห่อก่อนค่อย JSON.parse
- */
-function parseGvizResponse(text) {
-  const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/);
-  if (!match) throw new Error('รูปแบบข้อมูลจาก Google Sheets ไม่ตรงตามที่คาด (gviz)');
-  return JSON.parse(match[1]);
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.6vw, 30px);
+  font-weight: 600;
+}
+.kpi-value-text { font-size: 18px; text-transform: none; }
+
+.kpi-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
 }
 
-async function fetchGvizSheet(sheetName) {
-  const res = await fetch(gvizUrl(sheetName), { cache: 'no-store' });
-  if (!res.ok) throw new Error(`HTTP ${res.status} (${sheetName})`);
-  const text = await res.text();
-  return parseGvizResponse(text);
+/* ---------- Charts ---------- */
+
+.chart-row {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.chart-row.two-col { grid-template-columns: 1fr 1fr; }
+
+.panel {
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px 18px;
 }
 
-function gvizRowsToObjects(gvizJson, columnKeys) {
-  const rows = (gvizJson.table && gvizJson.table.rows) || [];
-  return rows.map(row => {
-    const obj = {};
-    columnKeys.forEach((key, i) => {
-      const cell = row.c && row.c[i];
-      obj[key] = cell ? cell.v : null;
-    });
-    return obj;
-  });
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 10px;
 }
 
-async function fetchDataWithRetry() {
-  let lastError;
-  for (let attempt = 1; attempt <= MAX_FETCH_RETRIES; attempt++) {
-    try {
-      const [costJson, saleJson] = await Promise.all([
-        fetchGvizSheet(MASTER_LOG_SHEET_NAME),
-        fetchGvizSheet(MASTER_LOG_SALE_SHEET_NAME)
-      ]);
-      const data = gvizRowsToObjects(costJson, MASTER_LOG_COLUMN_KEYS);
-      const sales = gvizRowsToObjects(saleJson, MASTER_LOG_SALE_COLUMN_KEYS);
-      return { success: true, count: data.length, data, salesCount: sales.length, sales };
-    } catch (err) {
-      lastError = err;
-      if (attempt < MAX_FETCH_RETRIES) {
-        document.getElementById('last-loaded').textContent = `retrying… (${attempt}/${MAX_FETCH_RETRIES - 1})`;
-        await delay(RETRY_DELAY_MS * attempt);
-      }
-    }
-  }
-  throw lastError; // ลองครบทุกรอบแล้วยังไม่สำเร็จ ค่อยโยน error จริง
+.panel-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--accent-savings);
 }
 
-async function loadData() {
-  setLoadingState();
-  document.getElementById('loading-bar').classList.add('active');
-  try {
-    const payload = await fetchDataWithRetry();
-
-    RAW_RECORDS = (payload.data || []).map(normalizeRecord);
-    RAW_SALES = (payload.sales || []).map(normalizeSaleRecord);
-    updateFilterOptions();
-    if (!defaultFiltersApplied) {
-      applyDefaultFilters();
-      updateFilterOptions(); // ปรับ dropdown อื่นให้เหลือแค่ตัวเลือกที่มีจริงในปีที่เลือก default
-      defaultFiltersApplied = true;
-    }
-    render();
-
-    document.getElementById('record-count').textContent = `${payload.count} records · ${payload.salesCount ?? RAW_SALES.length} sales rows`;
-    document.getElementById('last-loaded').textContent = `loaded ${new Date().toLocaleTimeString('th-TH')}`;
-    hideError();
-  } catch (err) {
-    showError(`โหลดข้อมูลไม่สำเร็จหลังลองซ้ำ ${MAX_FETCH_RETRIES} ครั้ง: ${err.message}`);
-  } finally {
-    document.getElementById('loading-bar').classList.remove('active');
-  }
+.panel-head h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 16px;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-function normalizeRecord(r) {
-  return {
-    site: r.site != null ? String(r.site) : 'Unknown',
-    fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
-    registNo: r.registNo || '',
-    projectType: r.projectType || 'Unspecified',
-    projectName: r.projectName || '',
-    dept: r.dept || 'Unspecified',
-    costingElement: r.costingElement || '',
-    month: r.month || '',
-    cs: toNumber(r.cs)
-  };
+.panel-head-sub {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
-function normalizeSaleRecord(r) {
-  return {
-    site: r.site != null ? String(r.site) : 'Unknown',
-    fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
-    month: r.month || '',
-    salesAmount: toNumber(r.salesAmount)
-  };
+.chart-panel { display: flex; flex-direction: column; }
+
+.chart-frame {
+  position: relative;
+  width: 100%;
+  height: 260px;
+}
+.chart-frame-wide { height: 320px; }
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.chart-empty:not([hidden]) { display: flex; }
+
+@media (max-width: 560px) {
+  .chart-frame { height: 220px; }
+  .chart-frame-wide { height: 240px; }
 }
 
-function toNumber(v) {
-  const n = typeof v === 'number' ? v : parseFloat(v);
-  return Number.isFinite(n) ? n : 0;
+/* ---------- Table ---------- */
+
+.table-panel { margin-bottom: 20px; }
+
+.table-scroll { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
 }
 
-function setLoadingState() {
-  document.getElementById('last-loaded').textContent = 'loading…';
-  document.getElementById('project-table-body').innerHTML =
-    '<tr><td colspan="7" class="table-empty">Loading data…</td></tr>';
+thead th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--line);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+thead th:hover { color: var(--accent-safety); }
+thead th.num { text-align: right; }
+
+tbody td {
+  padding: 9px 10px;
+  border-bottom: 2px solid var(--line);
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+tbody td.num, thead th.num { text-align: right; font-family: var(--font-mono); }
+tbody tr:hover { background: var(--panel-raised); }
+
+td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
+
+.table-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  padding: 26px 0 !important;
 }
 
-// ============================================================
-// FILTERS
-// ============================================================
-/**
- * สร้างรายการตัวเลือกของแต่ละ dropdown แบบ "cascading" — ตัวเลือกของ dropdown หนึ่ง
- * จะคำนวณจากข้อมูลที่ผ่าน filter อื่นๆ ที่เลือกไว้แล้วเท่านั้น (ไม่รวม filter ของ
- * ตัวมันเอง) เช่น เลือก Fiscal Year = 2026 ไปแล้ว ตัวเลือกใน Site/Dept/Type/Month
- * จะเหลือเฉพาะค่าที่มีข้อมูลจริงในปี 2026 เท่านั้น
- */
-function updateFilterOptions() {
-  const FIELD_KEYS = ['fiscalYear', 'site', 'dept', 'projectType', 'month'];
+.cs-positive { color: var(--accent-savings); }
+.cs-negative { color: var(--cs-negative); }
 
-  FIELD_KEYS.forEach(key => {
-    const candidates = getFilteredRecords([key]); // ไม่กรองด้วย filter ของตัวเอง
-    const values = new Set();
-    candidates.forEach(r => { if (r[key]) values.add(r[key]); });
+/* ---------- Misc ---------- */
 
-    let sortedValues;
-    if (key === 'fiscalYear') sortedValues = [...values].sort().reverse();
-    else if (key === 'month') sortedValues = MONTH_ORDER.filter(m => values.has(m));
-    else sortedValues = [...values].sort();
-
-    fillSelect(`filter-${key}`, sortedValues);
-  });
+.error-banner {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--error-border);
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
 }
 
-/**
- * ตั้งค่าเริ่มต้นตอนเปิดหน้าเว็บครั้งแรก ให้ chart/KPI โชว์เฉพาะปีงบปัจจุบัน
- * (ปีตามปฏิทินของเครื่องผู้ใช้) ถ้าปีนั้นมีอยู่ใน dropdown จริง
- * ทำแค่ครั้งเดียวตอนโหลดหน้าเว็บ — ไม่ทับ filter ที่ผู้ใช้เลือกเองระหว่างใช้งาน
- * (เช่นตอน auto-refresh ทุก 24 ชม.)
- */
-function applyDefaultFilters() {
-  const currentYear = String(new Date().getFullYear());
-  const fySelect = document.getElementById('filter-fiscalYear');
-  const hasCurrentYear = Array.from(fySelect.options).some(opt => opt.value === currentYear);
-  if (hasCurrentYear) fySelect.value = currentYear;
+/* ---------- Loading bar (sliding accent stripe while fetching) ---------- */
+
+.loading-bar {
+  height: 3px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  background: transparent;
 }
 
-function fillSelect(id, values) {
-  const select = document.getElementById(id);
-  const current = select.value;
-  select.innerHTML = '<option value="">All</option>' +
-    values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
-  if (values.includes(current)) select.value = current;
+.loading-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-savings), var(--accent-safety));
+  opacity: 0;
 }
 
-function getActiveFilters() {
-  return {
-    fiscalYear: document.getElementById('filter-fiscalYear').value,
-    site: document.getElementById('filter-site').value,
-    dept: document.getElementById('filter-dept').value,
-    projectType: document.getElementById('filter-projectType').value,
-    month: document.getElementById('filter-month').value
-  };
+.loading-bar.active::before {
+  opacity: 1;
+  animation: loadingSlide 1.1s ease-in-out infinite;
 }
 
-function getFilteredRecords(excludeKeys = []) {
-  const f = getActiveFilters();
-  return RAW_RECORDS.filter(r => {
-    if (!excludeKeys.includes('fiscalYear') && f.fiscalYear && r.fiscalYear !== f.fiscalYear) return false;
-    if (!excludeKeys.includes('site') && f.site && r.site !== f.site) return false;
-    if (!excludeKeys.includes('dept') && f.dept && r.dept !== f.dept) return false;
-    if (!excludeKeys.includes('projectType') && f.projectType && r.projectType !== f.projectType) return false;
-    if (!excludeKeys.includes('month') && f.month && r.month !== f.month) return false;
-    return true;
-  });
+@keyframes loadingSlide {
+  0%   { left: -30%; }
+  100% { left: 100%; }
 }
 
-function getFilteredSales(excludeKeys = []) {
-  const f = getActiveFilters();
-  return RAW_SALES.filter(r => {
-    if (!excludeKeys.includes('fiscalYear') && f.fiscalYear && r.fiscalYear !== f.fiscalYear) return false;
-    if (!excludeKeys.includes('site') && f.site && r.site !== f.site) return false;
-    if (!excludeKeys.includes('month') && f.month && r.month !== f.month) return false;
-    return true;
-  });
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar.active::before { animation: none; opacity: 1; left: 0; width: 100%; }
 }
 
-function clearFilters() {
-  ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {
-    document.getElementById(`filter-${key}`).value = '';
-  });
-  updateFilterOptions();
-  render();
+.board-footer {
+  text-align: center;
+  padding: 18px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  border-top: 1px solid var(--line);
 }
 
-// ============================================================
-// RENDER
-// ============================================================
-function render() {
-  const filtered = getFilteredRecords();
-  const filteredSales = getFilteredSales();
-  renderKPIs(filtered, filteredSales);
-  renderTrendChart(getFilteredRecords(['month'])); // trend always shows all months in scope
-  renderDeptChart(filtered);
-  renderTypeChart(filtered);
-  renderTable(filtered);
+/* ---------- Large screen / TV monitor mode (43"+ viewed from 2-3m) ---------- */
+/* จอใหญ่ที่ browser เต็มจอมักกว้าง 1600px ขึ้นไป (แม้ความละเอียดจริงจะสูงกว่านั้น
+   เพราะ browser ยังคง render ที่ CSS pixel ที่ scale ตาม DPI) */
+@media (min-width: 1600px) {
+  body { font-size: 20px; }
+
+  .board-header { padding: 32px 56px; }
+  .nameplate-eyebrow { font-size: 16px; }
+  .nameplate-title { font-size: 46px; }
+  .meta-pill { font-size: 17px; padding: 10px 16px; }
+  .switch-btn { font-size: 17px; padding: 12px 20px; }
+
+  main { padding: 40px 56px 80px; max-width: 1900px; }
+
+  .control-panel { padding: 24px 28px; gap: 24px; }
+  .switch-group { min-width: 190px; }
+  .switch-group label { font-size: 14px; }
+  .switch-group select { font-size: 19px; padding: 12px 14px; }
+
+  .kpi-row { gap: 22px; }
+  .kpi-plate { padding: 26px 28px 22px; }
+  .kpi-label { font-size: 15px; }
+  .kpi-value { font-size: 56px; }
+  .kpi-plate-hero .kpi-value { font-size: 68px; }
+  .kpi-value-text { font-size: 32px; }
+  .kpi-sub { font-size: 15px; }
+
+  .panel { padding: 24px 28px 28px; }
+  .panel-head { padding-bottom: 16px; margin-bottom: 18px; }
+  .panel-eyebrow { font-size: 15px; }
+  .panel-head h2 { font-size: 24px; }
+  .panel-head-sub { font-size: 16px; }
+
+  .chart-frame { height: 380px; }
+  .chart-frame-wide { height: 440px; }
+
+  table { font-size: 19px; }
+  thead th { font-size: 15px; padding: 14px 16px; }
+  tbody td { padding: 16px 16px; }
+
+  .board-footer { font-size: 15px; padding: 26px; }
 }
 
-function renderKPIs(records, salesRecords) {
-  const totalCs = sum(records, r => r.cs);
-  const totalSales = sum(salesRecords, r => r.salesAmount);
-  const projectCount = new Set(records.map(r => r.registNo)).size;
 
-  const byDept = groupSum(records, r => r.dept, r => r.cs);
-  const topDept = topEntry(byDept);
-  const byType = groupSum(records, r => r.projectType, r => r.cs);
-  const topType = topEntry(byType);
 
-  const csPercentEl = document.getElementById('kpi-cs-percent');
-  const csPercentSubEl = document.getElementById('kpi-cs-percent-sub');
-  if (totalSales > 0) {
-    csPercentEl.textContent = `${formatPercent((totalCs / totalSales) * 100)}%`;
-    csPercentSubEl.textContent = `${formatNumber(totalCs)} CS. ÷ ${formatNumber(totalSales)} sales`;
-  } else {
-    csPercentEl.textContent = '—';
-    csPercentSubEl.textContent = 'no sales data for this scope';
-  }
-
-  document.getElementById('kpi-total-cs').textContent = formatNumber(totalCs);
-  document.getElementById('kpi-total-sales').textContent = formatNumber(totalSales);
-  document.getElementById('kpi-project-count').textContent = projectCount;
-  document.getElementById('kpi-top-dept').textContent = topDept ? topDept[0] : '—';
-  document.getElementById('kpi-top-dept-sub').textContent = topDept ? `${formatNumber(topDept[1])} CS.` : 'no data';
-  document.getElementById('kpi-top-type').textContent = topType ? topType[0] : '—';
-  document.getElementById('kpi-top-type-sub').textContent = topType ? `${formatNumber(topType[1])} CS.` : 'no data';
+@media (max-width: 900px) {
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .chart-row.two-col { grid-template-columns: 1fr; }
 }
 
-function renderTrendChart(records) {
-  if (!CHARTJS_AVAILABLE) return;
-  const byMonth = groupSum(records, r => r.month, r => r.cs);
-  const values = MONTH_ORDER.map(m => byMonth[m] || 0);
-  const hasData = values.some(v => v !== 0);
-  setChartEmptyState('chart-trend-empty', !hasData);
-  const ctx = document.getElementById('chart-trend');
-
-  if (charts.trend) charts.trend.destroy();
-  charts.trend = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: MONTH_ORDER,
-      datasets: [{
-        label: 'CS.',
-        data: values,
-        backgroundColor: CHART_COLORS.savingsFaint,
-        borderColor: CHART_COLORS.savings,
-        borderWidth: 1.5,
-        borderRadius: 2,
-        maxBarThickness: 38
-      }]
-    },
-    options: baseChartOptions({ legend: false })
-  });
+@media (max-width: 560px) {
+  .kpi-row { grid-template-columns: 1fr; }
+  .control-panel { flex-direction: column; align-items: stretch; }
+  .switch-group { min-width: 0; }
 }
 
-function renderDeptChart(records) {
-  renderBreakdownChart('chart-dept', groupSum(records, r => r.dept, r => r.cs), charts, 'dept');
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .switch-btn { transition: none; }
 }
 
-function renderTypeChart(records) {
-  renderBreakdownChart('chart-type', groupSum(records, r => r.projectType, r => r.cs), charts, 'type');
+/* ---------- Input Data tab: PIN gate + admin links ---------- */
+
+.input-data-panel { max-width: 560px; }
+
+.pin-gate-note {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+.pin-gate-warning {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent-safety);
 }
 
-function renderBreakdownChart(canvasId, grouped, chartsObj, key) {
-  if (!CHARTJS_AVAILABLE) return;
-  const entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  setChartEmptyState(`${canvasId}-empty`, entries.length === 0);
-  const ctx = document.getElementById(canvasId);
-
-  if (chartsObj[key]) chartsObj[key].destroy();
-  chartsObj[key] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: entries.map(e => e[0]),
-      datasets: [{
-        data: entries.map(e => e[1]),
-        backgroundColor: entries.map((_, i) => CHART_COLORS.palette[i % CHART_COLORS.palette.length]),
-        borderRadius: 2,
-        maxBarThickness: 26
-      }]
-    },
-    options: baseChartOptions({ legend: false, indexAxis: 'y' })
-  });
+.pin-gate-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 14px;
 }
 
-function setChartEmptyState(elId, isEmpty) {
-  const el = document.getElementById(elId);
-  if (el) el.hidden = !isEmpty;
+.pin-input {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--panel-raised);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  width: 140px;
+}
+.pin-input:focus-visible { outline: 2px solid var(--accent-savings); outline-offset: 1px; }
+
+.pin-error {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--error-text);
 }
 
-function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {
-  return {
-    indexAxis,
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: legend },
-      tooltip: {
-        backgroundColor: '#1e252b',
-        borderColor: '#2a3540',
-        borderWidth: 1,
-        titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
-        bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
-        callbacks: { label: ctx => ` ${formatNumber(ctx.parsed[indexAxis === 'y' ? 'x' : 'y'])} CS.` }
-      }
-    },
-    scales: {
-      x: { grid: { color: CHART_COLORS.grid, drawTicks: false }, ticks: { font: { size: 10.5 } } },
-      y: { grid: { color: CHART_COLORS.grid, drawTicks: false }, ticks: { font: { size: 10.5 } }, beginAtZero: true }
-    }
-  };
+.input-links-welcome {
+  font-family: var(--font-body);
+  font-size: 14px;
+  margin: 0 0 16px;
 }
 
-function renderTable(records) {
-  const projects = {};
-  records.forEach(r => {
-    if (!projects[r.registNo]) {
-      projects[r.registNo] = {
-        registNo: r.registNo,
-        site: r.site,
-        fiscalYear: r.fiscalYear,
-        projectName: r.projectName,
-        dept: r.dept,
-        projectType: r.projectType,
-        totalCs: 0
-      };
-    }
-    projects[r.registNo].totalCs += r.cs;
-  });
-
-  let rows = Object.values(projects);
-  rows.sort((a, b) => {
-    const { key, dir } = sortState;
-    const mult = dir === 'asc' ? 1 : -1;
-    if (key === 'totalCs') return (a.totalCs - b.totalCs) * mult;
-    return String(a[key]).localeCompare(String(b[key])) * mult;
-  });
-
-  const tbody = document.getElementById('project-table-body');
-  document.getElementById('table-count').textContent = `${rows.length} projects`;
-
-  if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No projects match the current filters</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = rows.map(p => `
-    <tr>
-      <td class="mono">${escapeHtml(p.registNo)}</td>
-      <td>${escapeHtml(p.site)}</td>
-      <td class="mono">${escapeHtml(p.fiscalYear)}</td>
-      <td>${escapeHtml(p.projectName)}</td>
-      <td>${escapeHtml(p.dept)}</td>
-      <td>${escapeHtml(p.projectType)}</td>
-      <td class="num ${p.totalCs >= 0 ? 'cs-positive' : 'cs-negative'}">${formatNumber(p.totalCs)}</td>
-    </tr>
-  `).join('');
+.input-links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
-function sum(arr, fn) { return arr.reduce((acc, x) => acc + fn(x), 0); }
-
-function groupSum(arr, keyFn, valFn) {
-  const out = {};
-  arr.forEach(x => {
-    const k = keyFn(x);
-    out[k] = (out[k] || 0) + valFn(x);
-  });
-  return out;
+.input-link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  text-decoration: none;
+  color: var(--text-primary);
 }
-
-function topEntry(grouped) {
-  const entries = Object.entries(grouped);
-  if (entries.length === 0) return null;
-  return entries.sort((a, b) => b[1] - a[1])[0];
-}
-
-function formatNumber(n) {
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n || 0);
-}
-
-function formatPercent(n) {
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n || 0);
-}
-
-function escapeHtml(str) {
-  return String(str ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
-}
-
-function showError(msg) {
-  const el = document.getElementById('error-banner');
-  el.textContent = msg;
-  el.hidden = false;
-}
-function hideError() {
-  document.getElementById('error-banner').hidden = true;
-}
+.input-link-card:hover { border-color: var(--accent-safety); }
+.input-link-card-title { font-family: var(--font-display); font-weight: 500; font-size: 15px; text-transform: uppercase; }
+.input-link-card-desc { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted); }

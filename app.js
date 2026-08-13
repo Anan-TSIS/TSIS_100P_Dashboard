@@ -104,14 +104,38 @@ function setTheme(theme, rerender) {
 // ============================================================
 // DATA LOADING
 // ============================================================
+const MAX_FETCH_RETRIES = 3;
+const RETRY_DELAY_MS = 1200; // เพิ่มขึ้นทีละรอบ (1.2s, 2.4s, 3.6s)
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchDataWithRetry() {
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_FETCH_RETRIES; attempt++) {
+    try {
+      const res = await fetch(API_URL, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      if (!payload.success) throw new Error(payload.error || 'API returned success:false');
+      return payload; // สำเร็จ — คืนค่าทันที ไม่ต้อง retry ต่อ
+    } catch (err) {
+      lastError = err;
+      if (attempt < MAX_FETCH_RETRIES) {
+        document.getElementById('last-loaded').textContent = `retrying… (${attempt}/${MAX_FETCH_RETRIES - 1})`;
+        await delay(RETRY_DELAY_MS * attempt);
+      }
+    }
+  }
+  throw lastError; // ลองครบทุกรอบแล้วยังไม่สำเร็จ ค่อยโยน error จริง
+}
+
 async function loadData() {
   setLoadingState();
   document.getElementById('loading-bar').classList.add('active');
   try {
-    const res = await fetch(API_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const payload = await res.json();
-    if (!payload.success) throw new Error(payload.error || 'API returned success:false');
+    const payload = await fetchDataWithRetry();
 
     RAW_RECORDS = (payload.data || []).map(normalizeRecord);
     RAW_SALES = (payload.sales || []).map(normalizeSaleRecord);
@@ -122,7 +146,7 @@ async function loadData() {
     document.getElementById('last-loaded').textContent = `loaded ${new Date().toLocaleTimeString('th-TH')}`;
     hideError();
   } catch (err) {
-    showError(`โหลดข้อมูลไม่สำเร็จ: ${err.message}`);
+    showError(`โหลดข้อมูลไม่สำเร็จหลังลองซ้ำ ${MAX_FETCH_RETRIES} ครั้ง: ${err.message}`);
   } finally {
     document.getElementById('loading-bar').classList.remove('active');
   }

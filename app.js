@@ -154,7 +154,7 @@ async function loadData() {
 
 function normalizeRecord(r) {
   return {
-    site: r.site || 'Unknown',
+    site: r.site != null ? String(r.site) : 'Unknown',
     fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
     registNo: r.registNo || '',
     projectType: r.projectType || 'Unspecified',

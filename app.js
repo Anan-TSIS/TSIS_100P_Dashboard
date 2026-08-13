@@ -60,6 +60,8 @@ if (CHARTJS_AVAILABLE) {
   if (DATALABELS_AVAILABLE) {
     Chart.register(ChartDataLabels);
     Chart.defaults.set('plugins.datalabels', { display: false }); // ปิดไว้เป็นค่าเริ่มต้น เปิดเฉพาะ chart ที่ต้องการทีละตัว
+  } else {
+    console.warn('chartjs-plugin-datalabels โหลดไม่สำเร็จ — ตัวเลขบนแท่งกราฟจะไม่ขึ้น (กราฟยังใช้งานได้ปกติ)');
   }
 }
 

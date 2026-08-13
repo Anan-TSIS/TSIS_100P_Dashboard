@@ -27,6 +27,8 @@
   </div>
 </header>
 
+<div id="loading-bar" class="loading-bar" aria-hidden="true"></div>
+
 <main>
 
   <section class="control-panel" aria-label="Filters">
@@ -94,6 +96,7 @@
       </div>
       <div class="chart-frame chart-frame-wide">
         <canvas id="chart-trend"></canvas>
+        <span id="chart-trend-empty" class="chart-empty" hidden>No CS. data for this filter</span>
       </div>
     </div>
   </section>
@@ -106,6 +109,7 @@
       </div>
       <div class="chart-frame">
         <canvas id="chart-dept"></canvas>
+        <span id="chart-dept-empty" class="chart-empty" hidden>No CS. data for this filter</span>
       </div>
     </div>
     <div class="panel chart-panel">
@@ -115,6 +119,7 @@
       </div>
       <div class="chart-frame">
         <canvas id="chart-type"></canvas>
+        <span id="chart-type-empty" class="chart-empty" hidden>No CS. data for this filter</span>
       </div>
     </div>
   </section>

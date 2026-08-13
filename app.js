@@ -215,7 +215,10 @@ function initChartControls() {
   });
 
   ['cmp-fiscalYear', 'cmp-site', 'cmp-dept', 'cmp-projectType', 'cmp-month'].forEach(id => {
-    document.getElementById(id).addEventListener('change', render);
+    document.getElementById(id).addEventListener('change', () => {
+      updateCompareFilterOptions();
+      render();
+    });
   });
 }
 
@@ -391,7 +394,7 @@ async function loadData() {
     RAW_SALES = (payload.sales || []).map(normalizeSaleRecord);
     RAW_TARGETS = (payload.targets || []).map(normalizeTargetRecord);
     updateFilterOptions();
-    populateCompareFilterOptions();
+    updateCompareFilterOptions();
     if (!defaultFiltersApplied) {
       applyDefaultFilters();
       updateFilterOptions(); // ปรับ dropdown อื่นให้เหลือแค่ตัวเลือกที่มีจริงในปีที่เลือก default
@@ -483,11 +486,19 @@ function updateFilterOptions() {
  * เติมตัวเลือกให้ filter ชุด "Compare" (ไม่ cascading แบบ filter หลัก
  * เพื่อความเรียบง่าย — ใช้ค่าที่มีอยู่ทั้งหมดในข้อมูลเสมอ)
  */
-function populateCompareFilterOptions() {
+/**
+ * เติมตัวเลือกให้ filter ชุด "Compare" แบบ cascading เหมือน filter หลัก —
+ * ตัวเลือกแต่ละช่องจะเหลือเฉพาะค่าที่มีข้อมูลจริงตาม filter อื่นๆ ในชุด compare เอง
+ * (ไม่เกี่ยวกับ filter หลัก คนละชุดข้อมูลกัน)
+ */
+function updateCompareFilterOptions() {
   const FIELD_KEYS = ['fiscalYear', 'site', 'dept', 'projectType', 'month'];
+  const cmpFilters = getCompareFilters();
+
   FIELD_KEYS.forEach(key => {
+    const candidates = getFilteredRecords([key], cmpFilters);
     const values = new Set();
-    RAW_RECORDS.forEach(r => { if (r[key]) values.add(r[key]); });
+    candidates.forEach(r => { if (r[key]) values.add(r[key]); });
 
     let sortedValues;
     if (key === 'fiscalYear') sortedValues = [...values].sort().reverse();
@@ -677,7 +688,7 @@ function getSplitValues(filters, dimension) {
  * labelSuffix: ต่อท้ายชื่อ series เช่น ' (cmp)' เวลาเป็นชุด compare
  */
 function buildModeDatasets(filters, colorFamily, labelSuffix) {
-  if (chartViewMode === 'clustered' || chartViewMode === 'stacked') {
+  if ((chartViewMode === 'clustered' || chartViewMode === 'stacked') && chartSplitBy !== 'na') {
     const dimension = chartSplitBy;
     const values = getSplitValues(filters, dimension);
     const stacked = chartViewMode === 'stacked';
@@ -820,7 +831,7 @@ function renderTrendChart() {
         y: {
           stacked: stackedMode,
           grid: { color: CHART_COLORS.grid, drawTicks: false },
-          ticks: { font: { size: 10.5 }, callback: v => `${v}%` },
+          ticks: { font: { size: 10.5 }, callback: v => `${formatPercent(v)}%` },
           beginAtZero: true,
           grace: '12%'
         }
@@ -968,7 +979,7 @@ function formatNumber(n) {
 }
 
 function formatPercent(n) {
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n || 0);
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 }
 
 function escapeHtml(str) {

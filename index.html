@@ -84,6 +84,7 @@
           <div class="split-by-inline" id="split-by-group" hidden>
             <label for="split-by-select">SPLIT BY</label>
             <select id="split-by-select">
+              <option value="na">N/A</option>
               <option value="site" selected>Site</option>
               <option value="dept">Dept.</option>
               <option value="projectType">Project Type</option>
@@ -116,6 +117,24 @@
           <select id="cmp-month"><option value="">All</option></select>
         </div>
       </div>
+    </div>
+
+    <!-- ============ TAB: Summary Overview ============ -->
+    <section id="tab-overview" class="tab-panel">
+
+      <section class="chart-row">
+        <div class="panel chart-panel chart-panel-wide chart-panel-hero">
+          <div class="panel-head">
+            <span class="panel-eyebrow">COST SAVING</span>
+            <h2>% Cost Saving — Jan – Dec</h2>
+          </div>
+
+          <div class="chart-frame chart-frame-wide">
+            <canvas id="chart-trend"></canvas>
+            <span id="chart-trend-empty" class="chart-empty" hidden>No CS. data for this filter</span>
+          </div>
+        </div>
+      </section>
 
       <section class="kpi-row" aria-label="Summary">
         <div class="kpi-plate kpi-plate-hero accent-safety">
@@ -147,24 +166,6 @@
           <span class="kpi-label">TOP TYPE</span>
           <span id="kpi-top-type" class="kpi-value kpi-value-text">—</span>
           <span id="kpi-top-type-sub" class="kpi-sub">—</span>
-        </div>
-      </section>
-    </div>
-
-    <!-- ============ TAB: Summary Overview ============ -->
-    <section id="tab-overview" class="tab-panel">
-
-      <section class="chart-row">
-        <div class="panel chart-panel chart-panel-wide chart-panel-hero">
-          <div class="panel-head">
-            <span class="panel-eyebrow">COST SAVING</span>
-            <h2>% Cost Saving — Jan – Dec</h2>
-          </div>
-
-          <div class="chart-frame chart-frame-wide">
-            <canvas id="chart-trend"></canvas>
-            <span id="chart-trend-empty" class="chart-empty" hidden>No CS. data for this filter</span>
-          </div>
         </div>
       </section>
 

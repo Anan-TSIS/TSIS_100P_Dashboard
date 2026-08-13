@@ -48,6 +48,7 @@ function applyChartTheme() {
 // STATE
 // ============================================================
 let RAW_RECORDS = [];
+let defaultFiltersApplied = false;
 let RAW_SALES = [];
 let sortState = { key: 'totalCs', dir: 'desc' };
 let charts = { trend: null, dept: null, type: null };
@@ -140,6 +141,10 @@ async function loadData() {
     RAW_RECORDS = (payload.data || []).map(normalizeRecord);
     RAW_SALES = (payload.sales || []).map(normalizeSaleRecord);
     populateFilterOptions(RAW_RECORDS);
+    if (!defaultFiltersApplied) {
+      applyDefaultFilters();
+      defaultFiltersApplied = true;
+    }
     render();
 
     document.getElementById('record-count').textContent = `${payload.count} records · ${payload.salesCount ?? RAW_SALES.length} sales rows`;
@@ -210,6 +215,19 @@ function populateFilterOptions(records) {
   fillSelect('filter-dept', [...fields.dept].sort());
   fillSelect('filter-projectType', [...fields.projectType].sort());
   fillSelect('filter-month', MONTH_ORDER.filter(m => fields.month.has(m)));
+}
+
+/**
+ * ตั้งค่าเริ่มต้นตอนเปิดหน้าเว็บครั้งแรก ให้ chart/KPI โชว์เฉพาะปีงบปัจจุบัน
+ * (ปีตามปฏิทินของเครื่องผู้ใช้) ถ้าปีนั้นมีอยู่ใน dropdown จริง
+ * ทำแค่ครั้งเดียวตอนโหลดหน้าเว็บ — ไม่ทับ filter ที่ผู้ใช้เลือกเองระหว่างใช้งาน
+ * (เช่นตอน auto-refresh ทุก 24 ชม.)
+ */
+function applyDefaultFilters() {
+  const currentYear = String(new Date().getFullYear());
+  const fySelect = document.getElementById('filter-fiscalYear');
+  const hasCurrentYear = Array.from(fySelect.options).some(opt => opt.value === currentYear);
+  if (hasCurrentYear) fySelect.value = currentYear;
 }
 
 function fillSelect(id, values) {

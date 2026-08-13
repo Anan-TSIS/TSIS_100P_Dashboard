@@ -423,16 +423,41 @@ function normalizeRecord(r) {
     projectName: r.projectName || '',
     dept: r.dept || 'Unspecified',
     costingElement: r.costingElement || '',
-    month: r.month || '',
+    month: normalizeMonthLabel(r.month),
     cs: toNumber(r.cs)
   };
+}
+
+const MONTH_NAME_MAP = {
+  JAN: 'JAN', JANUARY: 'JAN',
+  FEB: 'FEB', FEBRUARY: 'FEB',
+  MAR: 'MAR', MARCH: 'MAR',
+  APR: 'APR', APRIL: 'APR',
+  MAY: 'MAY',
+  JUN: 'JUN', JUNE: 'JUN',
+  JUL: 'JUL', JULY: 'JUL',
+  AUG: 'AUG', AUGUST: 'AUG',
+  SEP: 'SEP', SEPT: 'SEP', SEPTEMBER: 'SEP',
+  OCT: 'OCT', OCTOBER: 'OCT',
+  NOV: 'NOV', NOVEMBER: 'NOV',
+  DEC: 'DEC', DECEMBER: 'DEC'
+};
+
+/**
+ * แปลงชื่อเดือนที่พิมพ์มาแบบไหนก็ได้ (ย่อ/เต็ม/ตัวเล็ก-ใหญ่ปน) ให้เป็นรหัส 3 ตัวอักษร
+ * มาตรฐานเสมอ (JAN..DEC) — กันปัญหาจากการกรอกข้อมูลไม่สม่ำเสมอใน Sheet
+ * เช่น "June", "JULY", "march" ก็ยัง match ได้ถูกต้อง
+ */
+function normalizeMonthLabel(raw) {
+  const s = String(raw || '').trim().toUpperCase();
+  return MONTH_NAME_MAP[s] || s;
 }
 
 function normalizeSaleRecord(r) {
   return {
     site: r.site != null ? String(r.site) : 'Unknown',
     fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
-    month: r.month || '',
+    month: normalizeMonthLabel(r.month),
     salesAmount: toNumber(r.salesAmount)
   };
 }

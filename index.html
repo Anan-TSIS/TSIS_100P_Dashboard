@@ -115,6 +115,40 @@
             <span class="panel-eyebrow">COST SAVING</span>
             <h2>% Cost Saving — Jan – Dec</h2>
           </div>
+
+          <div class="chart-controls">
+            <div class="view-mode-group" role="group" aria-label="Chart view mode">
+              <button class="view-mode-btn active" data-view-mode="normal">Normal</button>
+              <button class="view-mode-btn" data-view-mode="clustered">Clustered</button>
+              <button class="view-mode-btn" data-view-mode="stacked">Stacked</button>
+            </div>
+            <button id="compare-toggle-btn" class="switch-btn ghost">⚌ Compare</button>
+          </div>
+
+          <div id="compare-filters" class="control-panel compare-filters" hidden>
+            <span class="compare-filters-label">COMPARE SET</span>
+            <div class="switch-group">
+              <label for="cmp-fiscalYear">FISCAL YEAR</label>
+              <select id="cmp-fiscalYear"><option value="">All</option></select>
+            </div>
+            <div class="switch-group">
+              <label for="cmp-site">SITE</label>
+              <select id="cmp-site"><option value="">All</option></select>
+            </div>
+            <div class="switch-group">
+              <label for="cmp-dept">DEPT.</label>
+              <select id="cmp-dept"><option value="">All</option></select>
+            </div>
+            <div class="switch-group">
+              <label for="cmp-projectType">PROJECT TYPE</label>
+              <select id="cmp-projectType"><option value="">All</option></select>
+            </div>
+            <div class="switch-group">
+              <label for="cmp-month">MONTH</label>
+              <select id="cmp-month"><option value="">All</option></select>
+            </div>
+          </div>
+
           <div class="chart-frame chart-frame-wide">
             <canvas id="chart-trend"></canvas>
             <span id="chart-trend-empty" class="chart-empty" hidden>No CS. data for this filter</span>

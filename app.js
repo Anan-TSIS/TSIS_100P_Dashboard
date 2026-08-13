@@ -21,6 +21,9 @@ const MASTER_LOG_COLUMN_KEYS = [
 ];
 const MASTER_LOG_SALE_COLUMN_KEYS = ['fiscalYear', 'site', 'month', 'salesAmount'];
 
+const INPUT_TARGET_SHEET_NAME = 'Input_target';
+const INPUT_TARGET_COLUMN_KEYS = ['fiscalYear', 'commitPercent', 'targetPercent'];
+
 const MONTH_ORDER = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
 // ใช้แสดงบนจอ monitor ค้างไว้ทั้งวัน — ดึงข้อมูลใหม่อัตโนมัติทุก 24 ชม. โดยไม่ต้องกด Refresh เอง
@@ -75,6 +78,9 @@ function applyChartTheme() {
 let RAW_RECORDS = [];
 let defaultFiltersApplied = false;
 let RAW_SALES = [];
+let RAW_TARGETS = [];
+let chartViewMode = 'normal'; // 'normal' | 'clustered' | 'stacked'
+let compareEnabled = false;
 let sortState = { key: 'totalCs', dir: 'desc' };
 let charts = { trend: null, dept: null, type: null };
 
@@ -86,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initSidebarToggle();
   initPinGate();
+  initChartControls();
   loadData();
   setInterval(loadData, AUTO_REFRESH_MS);
   document.getElementById('refresh-btn').addEventListener('click', loadData);
@@ -174,6 +181,31 @@ function initSidebarToggle() {
 function applySidebarState(shell, btn, hidden) {
   shell.classList.toggle('sidebar-hidden', hidden);
   btn.title = hidden ? 'Show sidebar' : 'Hide sidebar';
+}
+
+// ============================================================
+// COST SAVING CHART CONTROLS — view mode + compare
+// ============================================================
+function initChartControls() {
+  document.querySelectorAll('.view-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      chartViewMode = btn.dataset.viewMode;
+      document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  const compareBtn = document.getElementById('compare-toggle-btn');
+  compareBtn.addEventListener('click', () => {
+    compareEnabled = !compareEnabled;
+    compareBtn.classList.toggle('active', compareEnabled);
+    document.getElementById('compare-filters').hidden = !compareEnabled;
+    render();
+  });
+
+  ['cmp-fiscalYear', 'cmp-site', 'cmp-dept', 'cmp-projectType', 'cmp-month'].forEach(id => {
+    document.getElementById(id).addEventListener('change', render);
+  });
 }
 
 // ============================================================
@@ -317,7 +349,16 @@ async function fetchDataWithRetry() {
       ]);
       const data = gvizRowsToObjects(costJson, MASTER_LOG_COLUMN_KEYS);
       const sales = gvizRowsToObjects(saleJson, MASTER_LOG_SALE_COLUMN_KEYS);
-      return { success: true, count: data.length, data, salesCount: sales.length, sales };
+
+      let targets = [];
+      try {
+        const targetJson = await fetchGvizSheet(INPUT_TARGET_SHEET_NAME);
+        targets = gvizRowsToObjects(targetJson, INPUT_TARGET_COLUMN_KEYS);
+      } catch (targetErr) {
+        console.warn('โหลด Input_target ไม่สำเร็จ (ไม่กระทบข้อมูลหลัก):', targetErr.message);
+      }
+
+      return { success: true, count: data.length, data, salesCount: sales.length, sales, targets };
     } catch (err) {
       lastError = err;
       if (attempt < MAX_FETCH_RETRIES) {
@@ -337,7 +378,9 @@ async function loadData() {
 
     RAW_RECORDS = (payload.data || []).map(normalizeRecord);
     RAW_SALES = (payload.sales || []).map(normalizeSaleRecord);
+    RAW_TARGETS = (payload.targets || []).map(normalizeTargetRecord);
     updateFilterOptions();
+    populateCompareFilterOptions();
     if (!defaultFiltersApplied) {
       applyDefaultFilters();
       updateFilterOptions(); // ปรับ dropdown อื่นให้เหลือแค่ตัวเลือกที่มีจริงในปีที่เลือก default
@@ -375,6 +418,14 @@ function normalizeSaleRecord(r) {
     fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
     month: r.month || '',
     salesAmount: toNumber(r.salesAmount)
+  };
+}
+
+function normalizeTargetRecord(r) {
+  return {
+    fiscalYear: r.fiscalYear != null ? String(r.fiscalYear) : '',
+    commitPercent: toNumber(r.commitPercent),
+    targetPercent: toNumber(r.targetPercent)
   };
 }
 
@@ -416,6 +467,25 @@ function updateFilterOptions() {
 }
 
 /**
+ * เติมตัวเลือกให้ filter ชุด "Compare" (ไม่ cascading แบบ filter หลัก
+ * เพื่อความเรียบง่าย — ใช้ค่าที่มีอยู่ทั้งหมดในข้อมูลเสมอ)
+ */
+function populateCompareFilterOptions() {
+  const FIELD_KEYS = ['fiscalYear', 'site', 'dept', 'projectType', 'month'];
+  FIELD_KEYS.forEach(key => {
+    const values = new Set();
+    RAW_RECORDS.forEach(r => { if (r[key]) values.add(r[key]); });
+
+    let sortedValues;
+    if (key === 'fiscalYear') sortedValues = [...values].sort().reverse();
+    else if (key === 'month') sortedValues = MONTH_ORDER.filter(m => values.has(m));
+    else sortedValues = [...values].sort();
+
+    fillSelect(`cmp-${key}`, sortedValues);
+  });
+}
+
+/**
  * ตั้งค่าเริ่มต้นตอนเปิดหน้าเว็บครั้งแรก ให้ chart/KPI โชว์เฉพาะปีงบปัจจุบัน
  * (ปีตามปฏิทินของเครื่องผู้ใช้) ถ้าปีนั้นมีอยู่ใน dropdown จริง
  * ทำแค่ครั้งเดียวตอนโหลดหน้าเว็บ — ไม่ทับ filter ที่ผู้ใช้เลือกเองระหว่างใช้งาน
@@ -446,8 +516,18 @@ function getActiveFilters() {
   };
 }
 
-function getFilteredRecords(excludeKeys = []) {
-  const f = getActiveFilters();
+function getCompareFilters() {
+  return {
+    fiscalYear: document.getElementById('cmp-fiscalYear').value,
+    site: document.getElementById('cmp-site').value,
+    dept: document.getElementById('cmp-dept').value,
+    projectType: document.getElementById('cmp-projectType').value,
+    month: document.getElementById('cmp-month').value
+  };
+}
+
+function getFilteredRecords(excludeKeys = [], filters = null) {
+  const f = filters || getActiveFilters();
   return RAW_RECORDS.filter(r => {
     if (!excludeKeys.includes('fiscalYear') && f.fiscalYear && r.fiscalYear !== f.fiscalYear) return false;
     if (!excludeKeys.includes('site') && f.site && r.site !== f.site) return false;
@@ -458,8 +538,8 @@ function getFilteredRecords(excludeKeys = []) {
   });
 }
 
-function getFilteredSales(excludeKeys = []) {
-  const f = getActiveFilters();
+function getFilteredSales(excludeKeys = [], filters = null) {
+  const f = filters || getActiveFilters();
   return RAW_SALES.filter(r => {
     if (!excludeKeys.includes('fiscalYear') && f.fiscalYear && r.fiscalYear !== f.fiscalYear) return false;
     if (!excludeKeys.includes('site') && f.site && r.site !== f.site) return false;
@@ -483,7 +563,7 @@ function render() {
   const filtered = getFilteredRecords();
   const filteredSales = getFilteredSales();
   renderKPIs(filtered, filteredSales);
-  renderTrendChart(getFilteredRecords(['month']), getFilteredSales(['month'])); // trend always shows all months in scope
+  renderTrendChart(); // อ่าน filter หลัก/compare และ view mode เองข้างใน
   renderDeptChart(filtered);
   renderTypeChart(filtered);
   renderTable(filtered);
@@ -524,13 +604,29 @@ function renderKPIs(records, salesRecords) {
   document.getElementById('kpi-top-type-sub').textContent = topType ? `${formatNumber(topType[1])} CS.` : 'no data';
 }
 
-function renderTrendChart(records, salesRecords) {
-  if (!CHARTJS_AVAILABLE) return;
+function hexWithAlpha(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
+function colorShades(colorFamily, count) {
+  const base = CHART_COLORS[colorFamily];
+  const alphas = count === 2 ? [0.55, 1] : [0.4, 0.7, 1];
+  return alphas.map(a => hexWithAlpha(base, a));
+}
+
+/**
+ * คำนวณ % Cost Saving รายเดือน (12 เดือน) + ค่าเฉลี่ยรวม (avg) จาก filter ที่ระบุ
+ */
+function computePercentSeries(filters) {
+  const records = getFilteredRecords(['month'], filters);
+  const salesRecords = getFilteredSales(['month'], filters);
   const csByMonth = groupSum(records, r => r.month, r => r.cs);
   const salesByMonth = groupSum(salesRecords, r => r.month, r => r.salesAmount);
 
-  const monthlyPercents = MONTH_ORDER.map(m => {
+  const monthly = MONTH_ORDER.map(m => {
     const cs = csByMonth[m] || 0;
     const sales = salesByMonth[m] || 0;
     return sales > 0 ? (cs / sales) * 100 : 0;
@@ -538,39 +634,123 @@ function renderTrendChart(records, salesRecords) {
 
   const totalCs = sum(records, r => r.cs);
   const totalSales = sum(salesRecords, r => r.salesAmount);
-  const avgPercent = totalSales > 0 ? (totalCs / totalSales) * 100 : 0;
-
+  const avg = totalSales > 0 ? (totalCs / totalSales) * 100 : 0;
   const hasData = Object.values(csByMonth).some(v => v !== 0);
-  setChartEmptyState('chart-trend-empty', !hasData);
+
+  return { monthly, avg, hasData };
+}
+
+/**
+ * สร้างชุด dataset ตาม view mode ปัจจุบัน (normal/clustered/stacked) จาก filter ที่ระบุ
+ * colorFamily: 'savings' (ชุดหลัก, โทนเขียว) หรือ 'safety' (ชุด compare, โทนส้ม)
+ * labelSuffix: ต่อท้ายชื่อ series เช่น ' (cmp)' เวลาเป็นชุด compare
+ */
+function buildModeDatasets(filters, colorFamily, labelSuffix) {
+  if (chartViewMode === 'clustered') {
+    const s1510 = computePercentSeries({ ...filters, site: '1510' });
+    const s1520 = computePercentSeries({ ...filters, site: '1520' });
+    const sAll = computePercentSeries({ ...filters, site: '' });
+    const shades = colorShades(colorFamily, 3);
+    return {
+      datasets: [
+        { label: `1510${labelSuffix}`, data: [...s1510.monthly, s1510.avg], backgroundColor: shades[0], borderColor: shades[0], borderRadius: 2, maxBarThickness: 20 },
+        { label: `1520${labelSuffix}`, data: [...s1520.monthly, s1520.avg], backgroundColor: shades[1], borderColor: shades[1], borderRadius: 2, maxBarThickness: 20 },
+        { label: `All${labelSuffix}`, data: [...sAll.monthly, sAll.avg], backgroundColor: shades[2], borderColor: shades[2], borderRadius: 2, maxBarThickness: 20 }
+      ],
+      hasData: s1510.hasData || s1520.hasData || sAll.hasData
+    };
+  }
+
+  if (chartViewMode === 'stacked') {
+    const s1510 = computePercentSeries({ ...filters, site: '1510' });
+    const s1520 = computePercentSeries({ ...filters, site: '1520' });
+    const shades = colorShades(colorFamily, 2);
+    return {
+      datasets: [
+        { label: `1510${labelSuffix}`, data: [...s1510.monthly, s1510.avg], backgroundColor: shades[0], stack: colorFamily, maxBarThickness: 38 },
+        { label: `1520${labelSuffix}`, data: [...s1520.monthly, s1520.avg], backgroundColor: shades[1], stack: colorFamily, maxBarThickness: 38 }
+      ],
+      hasData: s1510.hasData || s1520.hasData
+    };
+  }
+
+  // normal
+  const s = computePercentSeries(filters);
+  return {
+    datasets: [{
+      label: `% CS.${labelSuffix}`,
+      data: [...s.monthly, s.avg],
+      backgroundColor: CHART_COLORS[`${colorFamily}Faint`],
+      borderColor: CHART_COLORS[colorFamily],
+      borderWidth: 1.5,
+      borderRadius: 2,
+      maxBarThickness: 38
+    }],
+    hasData: s.hasData
+  };
+}
+
+/**
+ * เส้น % Target — แสดงเฉพาะตอนเลือก Fiscal Year เดียวจริงๆ (ไม่ใช่ All)
+ * และมีข้อมูลปีนั้นอยู่ใน sheet Input_target
+ */
+function buildTargetDataset() {
+  const fy = getActiveFilters().fiscalYear;
+  if (!fy) return null;
+  const target = RAW_TARGETS.find(t => t.fiscalYear === fy);
+  if (!target) return null;
+
+  return {
+    type: 'line',
+    label: `Target ${fy}`,
+    data: Array(13).fill(target.targetPercent),
+    borderColor: CHART_COLORS.safety,
+    borderDash: [6, 4],
+    borderWidth: 2,
+    pointRadius: 0,
+    fill: false,
+    order: -1,
+    datalabels: { display: false }
+  };
+}
+
+function renderTrendChart() {
+  if (!CHARTJS_AVAILABLE) return;
 
   const labels = [...MONTH_ORDER, 'AVG.'];
-  const values = [...monthlyPercents, avgPercent];
-  const barColors = MONTH_ORDER.map(() => CHART_COLORS.savingsFaint).concat(CHART_COLORS.safetyFaint || CHART_COLORS.safety);
-  const borderColors = MONTH_ORDER.map(() => CHART_COLORS.savings).concat(CHART_COLORS.safety);
+  const primary = buildModeDatasets(getActiveFilters(), 'savings', '');
+  let datasets = [...primary.datasets];
+  let hasData = primary.hasData;
+
+  if (compareEnabled) {
+    const secondary = buildModeDatasets(getCompareFilters(), 'safety', ' (cmp)');
+    datasets = datasets.concat(secondary.datasets);
+    hasData = hasData || secondary.hasData;
+  }
+
+  const targetDs = buildTargetDataset();
+  if (targetDs) datasets = datasets.concat([targetDs]);
+
+  setChartEmptyState('chart-trend-empty', !hasData);
+
+  const stackedMode = chartViewMode === 'stacked';
+  const showDatalabels = DATALABELS_AVAILABLE && datasets.length === 1;
 
   const ctx = document.getElementById('chart-trend');
   if (charts.trend) charts.trend.destroy();
   charts.trend = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: '% CS.',
-        data: values,
-        backgroundColor: barColors,
-        borderColor: borderColors,
-        borderWidth: 1.5,
-        borderRadius: 2,
-        maxBarThickness: 38
-      }]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: datasets.length > 1,
+          labels: { color: CHART_COLORS.text, font: { family: "'IBM Plex Mono', monospace", size: 10.5 }, boxWidth: 12 }
+        },
         datalabels: {
-          display: DATALABELS_AVAILABLE,
+          display: showDatalabels,
           anchor: 'end',
           align: 'end',
           offset: 2,
@@ -585,12 +765,19 @@ function renderTrendChart(records, salesRecords) {
           borderWidth: 1,
           titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
           bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
-          callbacks: { label: ctx => ` ${formatPercent(ctx.parsed.y)}%` }
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${formatPercent(ctx.parsed.y)}%`
+          }
         }
       },
       scales: {
-        x: { grid: { color: CHART_COLORS.grid, drawTicks: false }, ticks: { font: { size: 10.5 } } },
+        x: {
+          stacked: stackedMode,
+          grid: { color: CHART_COLORS.grid, drawTicks: false },
+          ticks: { font: { size: 10.5 } }
+        },
         y: {
+          stacked: stackedMode,
           grid: { color: CHART_COLORS.grid, drawTicks: false },
           ticks: { font: { size: 10.5 }, callback: v => `${v}%` },
           beginAtZero: true,

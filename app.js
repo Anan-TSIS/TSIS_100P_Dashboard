@@ -82,7 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
   document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
   ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {
-    document.getElementById(`filter-${key}`).addEventListener('change', render);
+    document.getElementById(`filter-${key}`).addEventListener('change', () => {
+      updateFilterOptions();
+      render();
+    });
   });
   document.querySelectorAll('#project-table thead th[data-sort]').forEach(th => {
     th.addEventListener('click', () => {
@@ -193,9 +196,10 @@ async function loadData() {
 
     RAW_RECORDS = (payload.data || []).map(normalizeRecord);
     RAW_SALES = (payload.sales || []).map(normalizeSaleRecord);
-    populateFilterOptions(RAW_RECORDS);
+    updateFilterOptions();
     if (!defaultFiltersApplied) {
       applyDefaultFilters();
+      updateFilterOptions(); // ปรับ dropdown อื่นให้เหลือแค่ตัวเลือกที่มีจริงในปีที่เลือก default
       defaultFiltersApplied = true;
     }
     render();
@@ -247,27 +251,27 @@ function setLoadingState() {
 // ============================================================
 // FILTERS
 // ============================================================
-function populateFilterOptions(records) {
-  const fields = {
-    fiscalYear: new Set(),
-    site: new Set(),
-    dept: new Set(),
-    projectType: new Set(),
-    month: new Set()
-  };
-  records.forEach(r => {
-    if (r.fiscalYear) fields.fiscalYear.add(r.fiscalYear);
-    if (r.site) fields.site.add(r.site);
-    if (r.dept) fields.dept.add(r.dept);
-    if (r.projectType) fields.projectType.add(r.projectType);
-    if (r.month) fields.month.add(r.month);
-  });
+/**
+ * สร้างรายการตัวเลือกของแต่ละ dropdown แบบ "cascading" — ตัวเลือกของ dropdown หนึ่ง
+ * จะคำนวณจากข้อมูลที่ผ่าน filter อื่นๆ ที่เลือกไว้แล้วเท่านั้น (ไม่รวม filter ของ
+ * ตัวมันเอง) เช่น เลือก Fiscal Year = 2026 ไปแล้ว ตัวเลือกใน Site/Dept/Type/Month
+ * จะเหลือเฉพาะค่าที่มีข้อมูลจริงในปี 2026 เท่านั้น
+ */
+function updateFilterOptions() {
+  const FIELD_KEYS = ['fiscalYear', 'site', 'dept', 'projectType', 'month'];
 
-  fillSelect('filter-fiscalYear', [...fields.fiscalYear].sort().reverse());
-  fillSelect('filter-site', [...fields.site].sort());
-  fillSelect('filter-dept', [...fields.dept].sort());
-  fillSelect('filter-projectType', [...fields.projectType].sort());
-  fillSelect('filter-month', MONTH_ORDER.filter(m => fields.month.has(m)));
+  FIELD_KEYS.forEach(key => {
+    const candidates = getFilteredRecords([key]); // ไม่กรองด้วย filter ของตัวเอง
+    const values = new Set();
+    candidates.forEach(r => { if (r[key]) values.add(r[key]); });
+
+    let sortedValues;
+    if (key === 'fiscalYear') sortedValues = [...values].sort().reverse();
+    else if (key === 'month') sortedValues = MONTH_ORDER.filter(m => values.has(m));
+    else sortedValues = [...values].sort();
+
+    fillSelect(`filter-${key}`, sortedValues);
+  });
 }
 
 /**
@@ -327,6 +331,7 @@ function clearFilters() {
   ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {
     document.getElementById(`filter-${key}`).value = '';
   });
+  updateFilterOptions();
   render();
 }
 

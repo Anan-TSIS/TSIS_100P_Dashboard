@@ -89,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSidebarToggle();
   initPinGate();
   initChartControls();
+  initQrModal();
   loadData();
   setInterval(loadData, AUTO_REFRESH_MS);
   document.getElementById('refresh-btn').addEventListener('click', loadData);
@@ -177,6 +178,47 @@ function initSidebarToggle() {
 function applySidebarState(shell, btn, hidden) {
   shell.classList.toggle('sidebar-hidden', hidden);
   btn.title = hidden ? 'Show sidebar' : 'Hide sidebar';
+}
+
+// ============================================================
+// QR CODE MODAL
+// ============================================================
+function initQrModal() {
+  const modal = document.getElementById('qr-modal');
+  const openBtn = document.getElementById('qr-toggle-btn');
+  const closeBtn = document.getElementById('qr-close-btn');
+  const backdrop = modal.querySelector('.qr-modal-backdrop');
+  const copyBtn = document.getElementById('qr-copy-btn');
+
+  openBtn.addEventListener('click', openQrModal);
+  closeBtn.addEventListener('click', closeQrModal);
+  backdrop.addEventListener('click', closeQrModal);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.hidden) closeQrModal();
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      copyBtn.textContent = '✅ Copied!';
+    } catch (e) {
+      copyBtn.textContent = '⚠️ Copy failed';
+    }
+    setTimeout(() => { copyBtn.textContent = '📋 Copy link'; }, 1800);
+  });
+}
+
+function openQrModal() {
+  const url = window.location.href;
+  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
+  document.getElementById('qr-modal-img').src = qrImgUrl;
+  document.getElementById('qr-modal-url').textContent = url;
+  document.getElementById('qr-modal').hidden = false;
+}
+
+function closeQrModal() {
+  document.getElementById('qr-modal').hidden = true;
 }
 
 // ============================================================

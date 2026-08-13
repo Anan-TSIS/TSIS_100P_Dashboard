@@ -36,6 +36,7 @@
     <div class="sidebar-toolbar">
       <button id="sidebar-toggle-btn" class="theme-toggle-btn" title="Toggle sidebar">☰</button>
       <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle light/dark mode">🌙</button>
+      <button id="qr-toggle-btn" class="theme-toggle-btn" title="Show QR code">▦</button>
     </div>
     <button class="sidebar-link active" data-tab="overview">
       <span class="sidebar-link-num">01</span> Summary Overview
@@ -265,6 +266,17 @@
 <footer class="board-footer">
   <span>Source: Master_Log · Google Sheets (live)</span>
 </footer>
+
+<div id="qr-modal" class="qr-modal" hidden>
+  <div class="qr-modal-backdrop"></div>
+  <div class="qr-modal-box">
+    <button id="qr-close-btn" class="qr-close-btn" title="Close">✕</button>
+    <p class="qr-modal-title">สแกนเพื่อเปิด Dashboard</p>
+    <img id="qr-modal-img" class="qr-modal-img" alt="QR code สำหรับเปิดหน้าเว็บนี้" src="">
+    <p id="qr-modal-url" class="qr-modal-url"></p>
+    <button id="qr-copy-btn" class="switch-btn ghost">📋 Copy link</button>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>

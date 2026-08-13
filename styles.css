@@ -806,3 +806,77 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   letter-spacing: 0.12em;
   color: var(--accent-safety);
 }
+
+/* ---------- QR code modal ---------- */
+
+.qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.qr-modal-box {
+  position: relative;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  padding: 28px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 90vw;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.qr-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  line-height: 1;
+}
+.qr-close-btn:hover { color: var(--text-primary); }
+
+.qr-modal-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.qr-modal-img {
+  width: 220px;
+  height: 220px;
+  background: #ffffff;
+  border-radius: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+}
+
+.qr-modal-url {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-all;
+  text-align: center;
+  max-width: 260px;
+  margin: 0;
+}

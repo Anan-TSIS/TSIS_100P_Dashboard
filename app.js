@@ -106,6 +106,7 @@ function setTheme(theme, rerender) {
 // ============================================================
 async function loadData() {
   setLoadingState();
+  document.getElementById('loading-bar').classList.add('active');
   try {
     const res = await fetch(API_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -122,6 +123,8 @@ async function loadData() {
     hideError();
   } catch (err) {
     showError(`โหลดข้อมูลไม่สำเร็จ: ${err.message}`);
+  } finally {
+    document.getElementById('loading-bar').classList.remove('active');
   }
 }
 
@@ -278,6 +281,8 @@ function renderTrendChart(records) {
   if (!CHARTJS_AVAILABLE) return;
   const byMonth = groupSum(records, r => r.month, r => r.cs);
   const values = MONTH_ORDER.map(m => byMonth[m] || 0);
+  const hasData = values.some(v => v !== 0);
+  setChartEmptyState('chart-trend-empty', !hasData);
   const ctx = document.getElementById('chart-trend');
 
   if (charts.trend) charts.trend.destroy();
@@ -310,6 +315,7 @@ function renderTypeChart(records) {
 function renderBreakdownChart(canvasId, grouped, chartsObj, key) {
   if (!CHARTJS_AVAILABLE) return;
   const entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  setChartEmptyState(`${canvasId}-empty`, entries.length === 0);
   const ctx = document.getElementById(canvasId);
 
   if (chartsObj[key]) chartsObj[key].destroy();
@@ -326,6 +332,11 @@ function renderBreakdownChart(canvasId, grouped, chartsObj, key) {
     },
     options: baseChartOptions({ legend: false, indexAxis: 'y' })
   });
+}
+
+function setChartEmptyState(elId, isEmpty) {
+  const el = document.getElementById(elId);
+  if (el) el.hidden = !isEmpty;
 }
 
 function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {

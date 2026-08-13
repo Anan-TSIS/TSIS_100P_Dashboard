@@ -23,8 +23,6 @@
   <div class="header-meta">
     <span id="record-count" class="meta-pill">— records</span>
     <span id="last-loaded" class="meta-pill muted">loading…</span>
-    <button id="sidebar-toggle-btn" class="theme-toggle-btn" title="Toggle sidebar">☰</button>
-    <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle light/dark mode">🌙</button>
     <button id="refresh-btn" class="switch-btn" title="Reload data">⟳ Refresh</button>
   </div>
 </header>
@@ -33,7 +31,13 @@
 
 <div class="app-shell">
 
+  <div class="sidebar-hover-trigger" aria-hidden="true"></div>
+
   <nav class="sidebar" aria-label="Sections">
+    <div class="sidebar-toolbar">
+      <button id="sidebar-toggle-btn" class="theme-toggle-btn" title="Toggle sidebar">☰</button>
+      <button id="theme-toggle-btn" class="theme-toggle-btn" title="Toggle light/dark mode">🌙</button>
+    </div>
     <button class="sidebar-link active" data-tab="overview">
       <span class="sidebar-link-num">01</span> Summary Overview
     </button>
@@ -70,7 +74,48 @@
           <select id="filter-month"><option value="">All</option></select>
         </div>
         <button id="clear-filters-btn" class="switch-btn ghost">Clear filters</button>
+
+        <div class="chart-controls">
+          <div class="view-mode-group" role="group" aria-label="Chart view mode">
+            <button class="view-mode-btn active" data-view-mode="normal">Normal</button>
+            <button class="view-mode-btn" data-view-mode="clustered">Clustered</button>
+            <button class="view-mode-btn" data-view-mode="stacked">Stacked</button>
+          </div>
+          <div class="switch-group split-by-group" id="split-by-group" hidden>
+            <label for="split-by-select">SPLIT BY</label>
+            <select id="split-by-select">
+              <option value="site" selected>Site</option>
+              <option value="dept">Dept.</option>
+              <option value="projectType">Project Type</option>
+            </select>
+          </div>
+          <button id="compare-toggle-btn" class="switch-btn ghost">⚌ Compare</button>
+        </div>
       </section>
+
+      <div id="compare-filters" class="control-panel compare-filters" hidden>
+        <span class="compare-filters-label">COMPARE SET</span>
+        <div class="switch-group">
+          <label for="cmp-fiscalYear">FISCAL YEAR</label>
+          <select id="cmp-fiscalYear"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="cmp-site">SITE</label>
+          <select id="cmp-site"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="cmp-dept">DEPT.</label>
+          <select id="cmp-dept"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="cmp-projectType">PROJECT TYPE</label>
+          <select id="cmp-projectType"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="cmp-month">MONTH</label>
+          <select id="cmp-month"><option value="">All</option></select>
+        </div>
+      </div>
 
       <section class="kpi-row" aria-label="Summary">
         <div class="kpi-plate kpi-plate-hero accent-safety">
@@ -110,43 +155,10 @@
     <section id="tab-overview" class="tab-panel">
 
       <section class="chart-row">
-        <div class="panel chart-panel chart-panel-wide">
+        <div class="panel chart-panel chart-panel-wide chart-panel-hero">
           <div class="panel-head">
             <span class="panel-eyebrow">COST SAVING</span>
             <h2>% Cost Saving — Jan – Dec</h2>
-          </div>
-
-          <div class="chart-controls">
-            <div class="view-mode-group" role="group" aria-label="Chart view mode">
-              <button class="view-mode-btn active" data-view-mode="normal">Normal</button>
-              <button class="view-mode-btn" data-view-mode="clustered">Clustered</button>
-              <button class="view-mode-btn" data-view-mode="stacked">Stacked</button>
-            </div>
-            <button id="compare-toggle-btn" class="switch-btn ghost">⚌ Compare</button>
-          </div>
-
-          <div id="compare-filters" class="control-panel compare-filters" hidden>
-            <span class="compare-filters-label">COMPARE SET</span>
-            <div class="switch-group">
-              <label for="cmp-fiscalYear">FISCAL YEAR</label>
-              <select id="cmp-fiscalYear"><option value="">All</option></select>
-            </div>
-            <div class="switch-group">
-              <label for="cmp-site">SITE</label>
-              <select id="cmp-site"><option value="">All</option></select>
-            </div>
-            <div class="switch-group">
-              <label for="cmp-dept">DEPT.</label>
-              <select id="cmp-dept"><option value="">All</option></select>
-            </div>
-            <div class="switch-group">
-              <label for="cmp-projectType">PROJECT TYPE</label>
-              <select id="cmp-projectType"><option value="">All</option></select>
-            </div>
-            <div class="switch-group">
-              <label for="cmp-month">MONTH</label>
-              <select id="cmp-month"><option value="">All</option></select>
-            </div>
           </div>
 
           <div class="chart-frame chart-frame-wide">

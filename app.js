@@ -80,6 +80,7 @@ let defaultFiltersApplied = false;
 let RAW_SALES = [];
 let RAW_TARGETS = [];
 let chartViewMode = 'normal'; // 'normal' | 'clustered' | 'stacked'
+let chartSplitBy = 'site'; // 'site' | 'dept' | 'projectType' — ใช้เมื่อ chartViewMode != 'normal'
 let compareEnabled = false;
 let sortState = { key: 'totalCs', dir: 'desc' };
 let charts = { trend: null, dept: null, type: null };
@@ -187,12 +188,22 @@ function applySidebarState(shell, btn, hidden) {
 // COST SAVING CHART CONTROLS — view mode + compare
 // ============================================================
 function initChartControls() {
+  // เผื่อกัน state ค้างจาก HTML — บังคับซ่อน compare filters ตอนเริ่มเสมอ
+  document.getElementById('compare-filters').hidden = true;
+  document.getElementById('split-by-group').hidden = true;
+
   document.querySelectorAll('.view-mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       chartViewMode = btn.dataset.viewMode;
       document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('split-by-group').hidden = (chartViewMode === 'normal');
       render();
     });
+  });
+
+  document.getElementById('split-by-select').addEventListener('change', e => {
+    chartSplitBy = e.target.value;
+    render();
   });
 
   const compareBtn = document.getElementById('compare-toggle-btn');
@@ -613,8 +624,13 @@ function hexWithAlpha(hex, alpha) {
 
 function colorShades(colorFamily, count) {
   const base = CHART_COLORS[colorFamily];
-  const alphas = count === 2 ? [0.55, 1] : [0.4, 0.7, 1];
-  return alphas.map(a => hexWithAlpha(base, a));
+  if (count <= 1) return [base];
+  const shades = [];
+  for (let i = 0; i < count; i++) {
+    const alpha = 0.35 + (0.65 * i) / (count - 1); // ไล่เฉด 0.35 → 1.0
+    shades.push(hexWithAlpha(base, alpha));
+  }
+  return shades;
 }
 
 /**
@@ -641,37 +657,46 @@ function computePercentSeries(filters) {
 }
 
 /**
+ * หาค่าที่มีอยู่จริงของมิติที่จะแยก (site/dept/projectType) ภายใต้ filter อื่นๆ ที่เลือกไว้
+ * (ไม่กรองด้วยมิตินั้นเอง เพราะกำลังจะแยกตามมิตินั้น)
+ */
+function getSplitValues(filters, dimension) {
+  const candidates = getFilteredRecords([dimension], filters);
+  const values = new Set();
+  candidates.forEach(r => { if (r[dimension]) values.add(r[dimension]); });
+  return [...values].sort();
+}
+
+/**
  * สร้างชุด dataset ตาม view mode ปัจจุบัน (normal/clustered/stacked) จาก filter ที่ระบุ
+ * โหมด clustered/stacked จะแยกตามมิติที่เลือกไว้ใน chartSplitBy (site/dept/projectType)
+ * จำนวนก้อน/ชั้น = จำนวนค่าที่มีข้อมูลจริงของมิตินั้น (ไม่ตายตัว)
  * colorFamily: 'savings' (ชุดหลัก, โทนเขียว) หรือ 'safety' (ชุด compare, โทนส้ม)
  * labelSuffix: ต่อท้ายชื่อ series เช่น ' (cmp)' เวลาเป็นชุด compare
  */
 function buildModeDatasets(filters, colorFamily, labelSuffix) {
-  if (chartViewMode === 'clustered') {
-    const s1510 = computePercentSeries({ ...filters, site: '1510' });
-    const s1520 = computePercentSeries({ ...filters, site: '1520' });
-    const sAll = computePercentSeries({ ...filters, site: '' });
-    const shades = colorShades(colorFamily, 3);
-    return {
-      datasets: [
-        { label: `1510${labelSuffix}`, data: [...s1510.monthly, s1510.avg], backgroundColor: shades[0], borderColor: shades[0], borderRadius: 2, maxBarThickness: 20 },
-        { label: `1520${labelSuffix}`, data: [...s1520.monthly, s1520.avg], backgroundColor: shades[1], borderColor: shades[1], borderRadius: 2, maxBarThickness: 20 },
-        { label: `All${labelSuffix}`, data: [...sAll.monthly, sAll.avg], backgroundColor: shades[2], borderColor: shades[2], borderRadius: 2, maxBarThickness: 20 }
-      ],
-      hasData: s1510.hasData || s1520.hasData || sAll.hasData
-    };
-  }
+  if (chartViewMode === 'clustered' || chartViewMode === 'stacked') {
+    const dimension = chartSplitBy;
+    const values = getSplitValues(filters, dimension);
+    const stacked = chartViewMode === 'stacked';
+    const shades = colorShades(colorFamily, Math.max(values.length, 1));
 
-  if (chartViewMode === 'stacked') {
-    const s1510 = computePercentSeries({ ...filters, site: '1510' });
-    const s1520 = computePercentSeries({ ...filters, site: '1520' });
-    const shades = colorShades(colorFamily, 2);
-    return {
-      datasets: [
-        { label: `1510${labelSuffix}`, data: [...s1510.monthly, s1510.avg], backgroundColor: shades[0], stack: colorFamily, maxBarThickness: 38 },
-        { label: `1520${labelSuffix}`, data: [...s1520.monthly, s1520.avg], backgroundColor: shades[1], stack: colorFamily, maxBarThickness: 38 }
-      ],
-      hasData: s1510.hasData || s1520.hasData
-    };
+    let hasAnyData = false;
+    const datasets = values.map((val, i) => {
+      const s = computePercentSeries({ ...filters, [dimension]: val });
+      if (s.hasData) hasAnyData = true;
+      return {
+        label: `${val}${labelSuffix}`,
+        data: [...s.monthly, s.avg],
+        backgroundColor: shades[i],
+        borderColor: shades[i],
+        borderRadius: 2,
+        maxBarThickness: stacked ? 38 : Math.max(10, 60 / values.length),
+        stack: stacked ? colorFamily : undefined
+      };
+    });
+
+    return { datasets, hasData: hasAnyData };
   }
 
   // normal

@@ -480,6 +480,33 @@ function updateFilterOptions() {
 
     fillSelect(`filter-${key}`, sortedValues);
   });
+
+  updateSplitByOptions();
+}
+
+/**
+ * ตัดตัวเลือกใน "Split By" ออกอัตโนมัติถ้า filter หลักของมิตินั้นถูกเลือกเจาะจงไว้แล้ว
+ * (ไม่ใช่ All) เพราะแยกซ้ำกับสิ่งที่ filter ทำอยู่แล้วไม่มีประโยชน์ — เช่น เลือก Site=1510
+ * ไปแล้ว ตัวเลือก "Site" ใน Split By จะหายไป เหลือแค่ N/A / Dept. / Project Type
+ */
+function updateSplitByOptions() {
+  const f = getActiveFilters();
+  const select = document.getElementById('split-by-select');
+  const current = select.value;
+
+  const options = [{ value: 'na', label: 'N/A' }];
+  if (!f.site) options.push({ value: 'site', label: 'Site' });
+  if (!f.dept) options.push({ value: 'dept', label: 'Dept.' });
+  if (!f.projectType) options.push({ value: 'projectType', label: 'Project Type' });
+
+  select.innerHTML = options.map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+
+  if (options.some(o => o.value === current)) {
+    select.value = current;
+  } else {
+    select.value = 'na';
+    chartSplitBy = 'na';
+  }
 }
 
 /**
@@ -695,19 +722,55 @@ function buildModeDatasets(filters, colorFamily, labelSuffix) {
     const shades = colorShades(colorFamily, Math.max(values.length, 1));
 
     let hasAnyData = false;
-    const datasets = values.map((val, i) => {
-      const s = computePercentSeries({ ...filters, [dimension]: val });
-      if (s.hasData) hasAnyData = true;
-      return {
-        label: `${val}${labelSuffix}`,
-        data: [...s.monthly, s.avg],
-        backgroundColor: shades[i],
-        borderColor: shades[i],
-        borderRadius: 2,
-        maxBarThickness: stacked ? 38 : Math.max(10, 60 / values.length),
-        stack: stacked ? colorFamily : undefined
-      };
-    });
+    let datasets;
+
+    if (stacked) {
+      // สำคัญ: ต้องใช้ "ยอดขายรวมของทุกค่าในมิตินี้" เป็นตัวหารร่วมกันทุก series
+      // ไม่งั้นเอา % ที่คำนวณแยกกันคนละตัวหารมาซ้อนกัน ผลรวมจะเพี้ยน (สูงเกินจริง)
+      // ไม่ตรงกับ % Cost Saving รวมที่การ์ด KPI แสดง
+      const salesFilters = dimension === 'site' ? { ...filters, site: '' } : filters;
+      const sharedSales = getFilteredSales(['month'], salesFilters);
+      const totalSalesByMonth = groupSum(sharedSales, r => r.month, r => r.salesAmount);
+      const totalCombinedSales = sum(sharedSales, r => r.salesAmount);
+
+      datasets = values.map((val, i) => {
+        const records = getFilteredRecords(['month'], { ...filters, [dimension]: val });
+        const csByMonth = groupSum(records, r => r.month, r => r.cs);
+        const monthly = MONTH_ORDER.map(m => {
+          const totalSales = totalSalesByMonth[m] || 0;
+          return totalSales > 0 ? ((csByMonth[m] || 0) / totalSales) * 100 : 0;
+        });
+        const totalCsVal = sum(records, r => r.cs);
+        const avg = totalCombinedSales > 0 ? (totalCsVal / totalCombinedSales) * 100 : 0;
+        const hasData = Object.values(csByMonth).some(v => v !== 0);
+        if (hasData) hasAnyData = true;
+
+        return {
+          label: `${val}${labelSuffix}`,
+          data: [...monthly, avg],
+          backgroundColor: shades[i],
+          borderColor: shades[i],
+          borderRadius: 2,
+          maxBarThickness: 38,
+          stack: colorFamily
+        };
+      });
+    } else {
+      // clustered — แต่ละ series เทียบ % ของตัวเอง (หารด้วยยอดขายของตัวเอง) เพื่อเปรียบเทียบ
+      // ประสิทธิภาพระหว่างกัน ไม่ได้เอามาบวกกัน จึงไม่มีปัญหาเรื่องตัวหารร่วมแบบ stacked
+      datasets = values.map((val, i) => {
+        const s = computePercentSeries({ ...filters, [dimension]: val });
+        if (s.hasData) hasAnyData = true;
+        return {
+          label: `${val}${labelSuffix}`,
+          data: [...s.monthly, s.avg],
+          backgroundColor: shades[i],
+          borderColor: shades[i],
+          borderRadius: 2,
+          maxBarThickness: Math.max(10, 60 / values.length)
+        };
+      });
+    }
 
     return { datasets, hasData: hasAnyData };
   }
@@ -786,7 +849,20 @@ function renderTrendChart() {
   setChartEmptyState('chart-trend-empty', !hasData);
 
   const stackedMode = chartViewMode === 'stacked';
-  const showDatalabels = DATALABELS_AVAILABLE && datasets.length === 1;
+
+  function autoFontSize(ctx) {
+    try {
+      const meta = ctx.chart.getDatasetMeta(ctx.datasetIndex);
+      const el = meta.data[ctx.dataIndex];
+      if (!el) return 9;
+      const w = el.width || 30;
+      const h = Math.abs(el.height || 30);
+      const basis = stackedMode ? Math.min(w, h) : w;
+      return Math.max(7, Math.min(11, Math.floor(basis / 3.2)));
+    } catch (e) {
+      return 9;
+    }
+  }
 
   const ctx = document.getElementById('chart-trend');
   if (charts.trend) charts.trend.destroy();
@@ -802,13 +878,13 @@ function renderTrendChart() {
           labels: { color: CHART_COLORS.text, font: { family: "'IBM Plex Mono', monospace", size: 10.5 }, boxWidth: 12 }
         },
         datalabels: {
-          display: showDatalabels,
-          anchor: 'end',
-          align: 'end',
-          offset: 2,
+          display: DATALABELS_AVAILABLE, // dataset เส้น (target/commit) ปิดไว้ที่ตัว dataset เองอยู่แล้ว
+          anchor: stackedMode ? 'center' : 'end',
+          align: stackedMode ? 'center' : 'end',
+          offset: stackedMode ? 0 : 2,
           clip: false,
-          color: CHART_COLORS.text,
-          font: { family: "'IBM Plex Mono', monospace", size: 10 },
+          color: stackedMode ? '#ffffff' : CHART_COLORS.text,
+          font: { family: "'IBM Plex Mono', monospace", size: autoFontSize },
           formatter: v => `${formatPercent(v)}%`
         },
         tooltip: {

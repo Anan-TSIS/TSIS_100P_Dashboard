@@ -633,11 +633,11 @@ function clearFilters() {
 function render() {
   const filtered = getFilteredRecords();
   const filteredSales = getFilteredSales();
-  renderKPIs(filtered, filteredSales);
-  renderTrendChart(); // อ่าน filter หลัก/compare และ view mode เองข้างใน
-  renderDeptChart(filtered);
-  renderTypeChart(filtered);
-  renderTable(filtered);
+  try { renderKPIs(filtered, filteredSales); } catch (e) { console.error('renderKPIs failed:', e); }
+  try { renderTrendChart(); } catch (e) { console.error('renderTrendChart failed:', e); } // อ่าน filter หลัก/compare และ view mode เองข้างใน
+  try { renderDeptChart(filtered); } catch (e) { console.error('renderDeptChart failed:', e); }
+  try { renderTypeChart(filtered); } catch (e) { console.error('renderTypeChart failed:', e); }
+  try { renderTable(filtered); } catch (e) { console.error('renderTable failed:', e); }
 }
 
 function renderKPIs(records, salesRecords) {
@@ -859,57 +859,64 @@ function buildTargetLineDatasets() {
 const barValueLabelsPlugin = {
   id: 'barValueLabels',
   afterDatasetsDraw(chart) {
-    const opts = chart.options.plugins && chart.options.plugins.barValueLabels;
-    if (!opts || opts.display === false) return;
-    const { ctx } = chart;
-    const horizontal = chart.options.indexAxis === 'y';
+    try {
+      const opts = chart.options.plugins && chart.options.plugins.barValueLabels;
+      if (!opts || opts.display === false) return;
+      const { ctx } = chart;
+      const horizontal = chart.options.indexAxis === 'y';
 
-    chart.data.datasets.forEach((dataset, datasetIndex) => {
-      if (dataset.type === 'line') return; // เส้น target/commit ไม่ต้องมีตัวเลขกำกับ
-      const meta = chart.getDatasetMeta(datasetIndex);
-      if (!meta || meta.hidden) return;
-      const stacked = !!dataset.stack;
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        if (dataset.type === 'line') return; // เส้น target/commit ไม่ต้องมีตัวเลขกำกับ
+        const meta = chart.getDatasetMeta(datasetIndex);
+        if (!meta || meta.hidden || !meta.data) return;
+        const stacked = !!dataset.stack;
 
-      meta.data.forEach((el, index) => {
-        const value = dataset.data[index];
-        if (value === undefined || value === null || value === 0) return;
+        meta.data.forEach((el, index) => {
+          if (!el || typeof el.getProps !== 'function') return;
+          const value = dataset.data[index];
+          if (value === undefined || value === null || value === 0 || Number.isNaN(value)) return;
 
-        const props = el.getProps(['x', 'y', 'base', 'width', 'height'], true);
-        ctx.save();
-        ctx.fillStyle = stacked ? '#ffffff' : (opts.color || '#5f5f5f');
+          const props = el.getProps(['x', 'y', 'base', 'width', 'height'], true);
+          if (!props || !Number.isFinite(props.x) || !Number.isFinite(props.y)) return;
 
-        if (horizontal) {
-          const barLength = Math.abs(props.x - (props.base ?? props.x)) || 24;
-          const barThickness = props.height || 20;
-          const basis = stacked ? Math.min(barLength, barThickness) : barThickness;
-          const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 2.2)));
-          ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
-          ctx.textBaseline = 'middle';
-          if (stacked) {
-            ctx.textAlign = 'center';
-            ctx.fillText(opts.formatter(value), (props.x + props.base) / 2, props.y);
-          } else {
-            ctx.textAlign = 'left';
-            ctx.fillText(opts.formatter(value), props.x + 4, props.y);
-          }
-        } else {
-          const barWidth = props.width || 24;
-          const barHeight = Math.abs((props.base ?? props.y) - props.y) || 20;
-          const basis = stacked ? Math.min(barWidth, barHeight) : barWidth;
-          const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 3.2)));
-          ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
-          ctx.textAlign = 'center';
-          if (stacked) {
+          ctx.save();
+          ctx.fillStyle = stacked ? '#ffffff' : (opts.color || '#5f5f5f');
+
+          if (horizontal) {
+            const barLength = Math.abs(props.x - (props.base ?? props.x)) || 24;
+            const barThickness = props.height || 20;
+            const basis = stacked ? Math.min(barLength, barThickness) : barThickness;
+            const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 2.2)));
+            ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
             ctx.textBaseline = 'middle';
-            ctx.fillText(opts.formatter(value), props.x, (props.y + props.base) / 2);
+            if (stacked) {
+              ctx.textAlign = 'center';
+              ctx.fillText(opts.formatter(value), (props.x + props.base) / 2, props.y);
+            } else {
+              ctx.textAlign = 'left';
+              ctx.fillText(opts.formatter(value), props.x + 4, props.y);
+            }
           } else {
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(opts.formatter(value), props.x, props.y - 3);
+            const barWidth = props.width || 24;
+            const barHeight = Math.abs((props.base ?? props.y) - props.y) || 20;
+            const basis = stacked ? Math.min(barWidth, barHeight) : barWidth;
+            const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 3.2)));
+            ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
+            ctx.textAlign = 'center';
+            if (stacked) {
+              ctx.textBaseline = 'middle';
+              ctx.fillText(opts.formatter(value), props.x, (props.y + props.base) / 2);
+            } else {
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(opts.formatter(value), props.x, props.y - 3);
+            }
           }
-        }
-        ctx.restore();
+          ctx.restore();
+        });
       });
-    });
+    } catch (err) {
+      console.error('barValueLabelsPlugin draw error (ตัวเลขบนแท่งอาจหายไปแต่กราฟยังใช้งานได้):', err);
+    }
   }
 };
 

@@ -864,6 +864,7 @@ const barValueLabelsPlugin = {
       if (!opts || opts.display === false) return;
       const { ctx } = chart;
       const horizontal = chart.options.indexAxis === 'y';
+      let drawnCount = 0;
 
       chart.data.datasets.forEach((dataset, datasetIndex) => {
         if (dataset.type === 'line') return; // เส้น target/commit ไม่ต้องมีตัวเลขกำกับ
@@ -872,48 +873,57 @@ const barValueLabelsPlugin = {
         const stacked = !!dataset.stack;
 
         meta.data.forEach((el, index) => {
-          if (!el || typeof el.getProps !== 'function') return;
+          if (!el) return;
           const value = dataset.data[index];
           if (value === undefined || value === null || value === 0 || Number.isNaN(value)) return;
 
-          const props = el.getProps(['x', 'y', 'base', 'width', 'height'], true);
-          if (!props || !Number.isFinite(props.x) || !Number.isFinite(props.y)) return;
+          const x = el.x;
+          const y = el.y;
+          const base = el.base;
+          const width = el.width;
+          if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
           ctx.save();
           ctx.fillStyle = stacked ? '#ffffff' : (opts.color || '#5f5f5f');
 
           if (horizontal) {
-            const barLength = Math.abs(props.x - (props.base ?? props.x)) || 24;
-            const barThickness = props.height || 20;
+            const barLength = Number.isFinite(base) ? Math.abs(x - base) : 24;
+            const barThickness = (el.height != null ? el.height : (typeof el.height === 'function' ? el.height() : null)) || 20;
             const basis = stacked ? Math.min(barLength, barThickness) : barThickness;
             const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 2.2)));
             ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
             ctx.textBaseline = 'middle';
             if (stacked) {
               ctx.textAlign = 'center';
-              ctx.fillText(opts.formatter(value), (props.x + props.base) / 2, props.y);
+              ctx.fillText(opts.formatter(value), (x + base) / 2, y);
             } else {
               ctx.textAlign = 'left';
-              ctx.fillText(opts.formatter(value), props.x + 4, props.y);
+              ctx.fillText(opts.formatter(value), x + 4, y);
             }
           } else {
-            const barWidth = props.width || 24;
-            const barHeight = Math.abs((props.base ?? props.y) - props.y) || 20;
+            const barWidth = width || 24;
+            const barHeight = Number.isFinite(base) ? Math.abs(base - y) : 20;
             const basis = stacked ? Math.min(barWidth, barHeight) : barWidth;
             const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 3.2)));
             ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
             ctx.textAlign = 'center';
             if (stacked) {
               ctx.textBaseline = 'middle';
-              ctx.fillText(opts.formatter(value), props.x, (props.y + props.base) / 2);
+              ctx.fillText(opts.formatter(value), x, (y + base) / 2);
             } else {
               ctx.textBaseline = 'bottom';
-              ctx.fillText(opts.formatter(value), props.x, props.y - 3);
+              ctx.fillText(opts.formatter(value), x, y - 3);
             }
           }
           ctx.restore();
+          drawnCount++;
         });
       });
+
+      if (chart.__barValueLabelsLogged !== drawnCount) {
+        console.log(`[barValueLabels] วาดตัวเลขไปทั้งหมด ${drawnCount} จุด บน chart "${chart.canvas.id}"`);
+        chart.__barValueLabelsLogged = drawnCount;
+      }
     } catch (err) {
       console.error('barValueLabelsPlugin draw error (ตัวเลขบนแท่งอาจหายไปแต่กราฟยังใช้งานได้):', err);
     }

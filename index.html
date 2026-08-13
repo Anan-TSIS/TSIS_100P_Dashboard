@@ -29,133 +29,193 @@
 
 <div id="loading-bar" class="loading-bar" aria-hidden="true"></div>
 
-<main>
+<div class="app-shell">
 
-  <section class="control-panel" aria-label="Filters">
-    <div class="switch-group">
-      <label for="filter-fiscalYear">FISCAL YEAR</label>
-      <select id="filter-fiscalYear"><option value="">All</option></select>
-    </div>
-    <div class="switch-group">
-      <label for="filter-site">SITE</label>
-      <select id="filter-site"><option value="">All</option></select>
-    </div>
-    <div class="switch-group">
-      <label for="filter-dept">DEPT.</label>
-      <select id="filter-dept"><option value="">All</option></select>
-    </div>
-    <div class="switch-group">
-      <label for="filter-projectType">PROJECT TYPE</label>
-      <select id="filter-projectType"><option value="">All</option></select>
-    </div>
-    <div class="switch-group">
-      <label for="filter-month">MONTH</label>
-      <select id="filter-month"><option value="">All</option></select>
-    </div>
-    <button id="clear-filters-btn" class="switch-btn ghost">Clear filters</button>
-  </section>
+  <nav class="sidebar" aria-label="Sections">
+    <button class="sidebar-link active" data-tab="overview">
+      <span class="sidebar-link-num">01</span> Summary Overview
+    </button>
+    <button class="sidebar-link" data-tab="projectlog">
+      <span class="sidebar-link-num">02</span> Project Log
+    </button>
+    <button class="sidebar-link" data-tab="inputdata">
+      <span class="sidebar-link-num">03</span> Input Data
+    </button>
+  </nav>
 
-  <section class="kpi-row" aria-label="Summary">
-    <div class="kpi-plate kpi-plate-hero accent-safety">
-      <span class="kpi-label">% COST SAVING</span>
-      <span id="kpi-cs-percent" class="kpi-value">—</span>
-      <span id="kpi-cs-percent-sub" class="kpi-sub">CS. ÷ sales, filtered scope</span>
-    </div>
-    <div class="kpi-plate accent-savings">
-      <span class="kpi-label">TOTAL CS.</span>
-      <span id="kpi-total-cs" class="kpi-value">—</span>
-      <span class="kpi-sub">฿ saved, filtered scope</span>
-    </div>
-    <div class="kpi-plate">
-      <span class="kpi-label">TOTAL SALES</span>
-      <span id="kpi-total-sales" class="kpi-value">—</span>
-      <span class="kpi-sub">฿, filtered scope</span>
-    </div>
-    <div class="kpi-plate">
-      <span class="kpi-label">PROJECTS</span>
-      <span id="kpi-project-count" class="kpi-value">—</span>
-      <span class="kpi-sub">unique regist no.</span>
-    </div>
-    <div class="kpi-plate">
-      <span class="kpi-label">TOP DEPT.</span>
-      <span id="kpi-top-dept" class="kpi-value kpi-value-text">—</span>
-      <span id="kpi-top-dept-sub" class="kpi-sub">—</span>
-    </div>
-    <div class="kpi-plate">
-      <span class="kpi-label">TOP TYPE</span>
-      <span id="kpi-top-type" class="kpi-value kpi-value-text">—</span>
-      <span id="kpi-top-type-sub" class="kpi-sub">—</span>
-    </div>
-  </section>
+  <main>
 
-  <section class="chart-row">
-    <div class="panel chart-panel chart-panel-wide">
-      <div class="panel-head">
-        <span class="panel-eyebrow">01 · TREND</span>
-        <h2>Monthly CS. — Jan – Dec</h2>
-      </div>
-      <div class="chart-frame chart-frame-wide">
-        <canvas id="chart-trend"></canvas>
-        <span id="chart-trend-empty" class="chart-empty" hidden>No CS. data for this filter</span>
-      </div>
-    </div>
-  </section>
+    <div id="filters-kpi-block">
+      <section class="control-panel" aria-label="Filters">
+        <div class="switch-group">
+          <label for="filter-fiscalYear">FISCAL YEAR</label>
+          <select id="filter-fiscalYear"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="filter-site">SITE</label>
+          <select id="filter-site"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="filter-dept">DEPT.</label>
+          <select id="filter-dept"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="filter-projectType">PROJECT TYPE</label>
+          <select id="filter-projectType"><option value="">All</option></select>
+        </div>
+        <div class="switch-group">
+          <label for="filter-month">MONTH</label>
+          <select id="filter-month"><option value="">All</option></select>
+        </div>
+        <button id="clear-filters-btn" class="switch-btn ghost">Clear filters</button>
+      </section>
 
-  <section class="chart-row two-col">
-    <div class="panel chart-panel">
-      <div class="panel-head">
-        <span class="panel-eyebrow">02 · BY DEPT.</span>
-        <h2>CS. by Department</h2>
-      </div>
-      <div class="chart-frame">
-        <canvas id="chart-dept"></canvas>
-        <span id="chart-dept-empty" class="chart-empty" hidden>No CS. data for this filter</span>
-      </div>
+      <section class="kpi-row" aria-label="Summary">
+        <div class="kpi-plate kpi-plate-hero accent-safety">
+          <span class="kpi-label">% COST SAVING</span>
+          <span id="kpi-cs-percent" class="kpi-value">—</span>
+          <span id="kpi-cs-percent-sub" class="kpi-sub">CS. ÷ sales, filtered scope</span>
+        </div>
+        <div class="kpi-plate accent-savings">
+          <span class="kpi-label">TOTAL CS.</span>
+          <span id="kpi-total-cs" class="kpi-value">—</span>
+          <span class="kpi-sub">฿ saved, filtered scope</span>
+        </div>
+        <div class="kpi-plate">
+          <span class="kpi-label">TOTAL SALES</span>
+          <span id="kpi-total-sales" class="kpi-value">—</span>
+          <span class="kpi-sub">฿, filtered scope</span>
+        </div>
+        <div class="kpi-plate">
+          <span class="kpi-label">PROJECTS</span>
+          <span id="kpi-project-count" class="kpi-value">—</span>
+          <span class="kpi-sub">unique regist no.</span>
+        </div>
+        <div class="kpi-plate">
+          <span class="kpi-label">TOP DEPT.</span>
+          <span id="kpi-top-dept" class="kpi-value kpi-value-text">—</span>
+          <span id="kpi-top-dept-sub" class="kpi-sub">—</span>
+        </div>
+        <div class="kpi-plate">
+          <span class="kpi-label">TOP TYPE</span>
+          <span id="kpi-top-type" class="kpi-value kpi-value-text">—</span>
+          <span id="kpi-top-type-sub" class="kpi-sub">—</span>
+        </div>
+      </section>
     </div>
-    <div class="panel chart-panel">
-      <div class="panel-head">
-        <span class="panel-eyebrow">03 · BY TYPE</span>
-        <h2>CS. by Project Type</h2>
-      </div>
-      <div class="chart-frame">
-        <canvas id="chart-type"></canvas>
-        <span id="chart-type-empty" class="chart-empty" hidden>No CS. data for this filter</span>
-      </div>
-    </div>
-  </section>
 
-  <section class="panel table-panel">
-    <div class="panel-head">
-      <span class="panel-eyebrow">04 · PROJECT LOG</span>
-      <h2>Projects</h2>
-      <span id="table-count" class="panel-head-sub"></span>
-    </div>
-    <div class="table-scroll">
-      <table id="project-table">
-        <thead>
-          <tr>
-            <th data-sort="registNo">Regist No.</th>
-            <th data-sort="site">Site</th>
-            <th data-sort="fiscalYear">FY</th>
-            <th data-sort="projectName">Project Name</th>
-            <th data-sort="dept">Dept.</th>
-            <th data-sort="projectType">Type</th>
-            <th data-sort="totalCs" class="num">Total CS.</th>
-          </tr>
-        </thead>
-        <tbody id="project-table-body">
-          <tr><td colspan="7" class="table-empty">Loading data…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+    <!-- ============ TAB: Summary Overview ============ -->
+    <section id="tab-overview" class="tab-panel">
 
-  <p id="error-banner" class="error-banner" hidden></p>
+      <section class="chart-row">
+        <div class="panel chart-panel chart-panel-wide">
+          <div class="panel-head">
+            <span class="panel-eyebrow">COST SAVING</span>
+            <h2>% Cost Saving — Jan – Dec</h2>
+          </div>
+          <div class="chart-frame chart-frame-wide">
+            <canvas id="chart-trend"></canvas>
+            <span id="chart-trend-empty" class="chart-empty" hidden>No CS. data for this filter</span>
+          </div>
+        </div>
+      </section>
 
-</main>
+      <section class="chart-row two-col">
+        <div class="panel chart-panel">
+          <div class="panel-head">
+            <span class="panel-eyebrow">TOP BY DEPT.</span>
+            <h2>Top By Dept.</h2>
+          </div>
+          <div class="chart-frame">
+            <canvas id="chart-dept"></canvas>
+            <span id="chart-dept-empty" class="chart-empty" hidden>No CS. data for this filter</span>
+          </div>
+        </div>
+        <div class="panel chart-panel">
+          <div class="panel-head">
+            <span class="panel-eyebrow">TOP BY TYPE</span>
+            <h2>Top By Type</h2>
+          </div>
+          <div class="chart-frame">
+            <canvas id="chart-type"></canvas>
+            <span id="chart-type-empty" class="chart-empty" hidden>No CS. data for this filter</span>
+          </div>
+        </div>
+      </section>
+
+    </section>
+
+    <!-- ============ TAB: Project Log ============ -->
+    <section id="tab-projectlog" class="tab-panel" hidden>
+      <section class="panel table-panel">
+        <div class="panel-head">
+          <span class="panel-eyebrow">PROJECT LOG</span>
+          <h2>Projects</h2>
+          <span id="table-count" class="panel-head-sub"></span>
+        </div>
+        <div class="table-scroll">
+          <table id="project-table">
+            <thead>
+              <tr>
+                <th data-sort="registNo">Regist No.</th>
+                <th data-sort="site">Site</th>
+                <th data-sort="fiscalYear">FY</th>
+                <th data-sort="projectName">Project Name</th>
+                <th data-sort="dept">Dept.</th>
+                <th data-sort="projectType">Type</th>
+                <th data-sort="totalCs" class="num">Total CS.</th>
+              </tr>
+            </thead>
+            <tbody id="project-table-body">
+              <tr><td colspan="7" class="table-empty">Loading data…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <!-- ============ TAB: Input Data (admin) ============ -->
+    <section id="tab-inputdata" class="tab-panel" hidden>
+      <section class="panel input-data-panel">
+        <div class="panel-head">
+          <span class="panel-eyebrow">ADMIN ONLY</span>
+          <h2>Input Data</h2>
+        </div>
+
+        <div id="pin-gate" class="pin-gate">
+          <p class="pin-gate-note">
+            ใส่ ID และ PIN สำหรับ Admin เพื่อเข้าถึงลิงก์กรอกข้อมูล<br>
+            <span class="pin-gate-warning">⚠️ เป็นการป้องกันเบื้องต้นเท่านั้น ไม่ใช่ระบบความปลอดภัยขั้นสูง</span>
+          </p>
+          <div class="pin-gate-form">
+            <div class="switch-group">
+              <label for="pin-id">ID</label>
+              <input id="pin-id" class="pin-input" type="text" autocomplete="off">
+            </div>
+            <div class="switch-group">
+              <label for="pin-code">PIN</label>
+              <input id="pin-code" class="pin-input" type="password" autocomplete="off">
+            </div>
+            <button id="pin-submit-btn" class="switch-btn">Unlock</button>
+          </div>
+          <p id="pin-error" class="pin-error" hidden>ID หรือ PIN ไม่ถูกต้อง</p>
+        </div>
+
+        <div id="input-links" class="input-links" hidden>
+          <p class="input-links-welcome">เข้าสู่ระบบสำเร็จ — <span id="pin-welcome-name"></span></p>
+          <div id="input-links-list" class="input-links-list"></div>
+          <button id="pin-lock-btn" class="switch-btn ghost">🔒 Lock again</button>
+        </div>
+      </section>
+    </section>
+
+    <p id="error-banner" class="error-banner" hidden></p>
+
+  </main>
+</div>
 
 <footer class="board-footer">
-  <span>Source: Master_Log · Apps Script Web App</span>
+  <span>Source: Master_Log · Google Sheets (live)</span>
 </footer>
 
 <script src="app.js"></script>

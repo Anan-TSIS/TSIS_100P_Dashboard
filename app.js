@@ -54,15 +54,8 @@ const CHART_COLORS_BY_THEME = {
 let CHART_COLORS = CHART_COLORS_BY_THEME.light;
 
 const CHARTJS_AVAILABLE = typeof Chart !== 'undefined';
-const DATALABELS_AVAILABLE = typeof ChartDataLabels !== 'undefined';
 if (CHARTJS_AVAILABLE) {
   Chart.defaults.font.family = "'IBM Plex Mono', monospace";
-  if (DATALABELS_AVAILABLE) {
-    Chart.register(ChartDataLabels);
-    Chart.defaults.set('plugins.datalabels', { display: false }); // ปิดไว้เป็นค่าเริ่มต้น เปิดเฉพาะ chart ที่ต้องการทีละตัว
-  } else {
-    console.warn('chartjs-plugin-datalabels โหลดไม่สำเร็จ — ตัวเลขบนแท่งกราฟจะไม่ขึ้น (กราฟยังใช้งานได้ปกติ)');
-  }
 }
 
 function getCurrentTheme() {
@@ -839,6 +832,7 @@ function buildTargetLineDatasets() {
     pointRadius: 0,
     fill: false,
     order: -1,
+    stack: 'target-line-only', // กันไม่ให้ Chart.js เอาไปรวมกับแท่ง stacked หรือกับเส้น Commit
     datalabels: { display: false }
   });
   lines.push({
@@ -851,10 +845,73 @@ function buildTargetLineDatasets() {
     pointRadius: 0,
     fill: false,
     order: -1,
+    stack: 'commit-line-only', // กันไม่ให้ Chart.js เอาไปรวมกับแท่ง stacked หรือกับเส้น Target
     datalabels: { display: false }
   });
   return lines;
 }
+
+/**
+ * Plugin วาดตัวเลข % บนแท่งกราฟเอง — ไม่พึ่ง CDN ภายนอกเลย (แก้ปัญหาที่
+ * chartjs-plugin-datalabels โหลดไม่ติดในบางเครือข่าย) รับประกันว่าทำงานเสมอ
+ * เพราะเป็นโค้ดของเราเอง ไม่ใช่ third-party script
+ */
+const barValueLabelsPlugin = {
+  id: 'barValueLabels',
+  afterDatasetsDraw(chart) {
+    const opts = chart.options.plugins && chart.options.plugins.barValueLabels;
+    if (!opts || opts.display === false) return;
+    const { ctx } = chart;
+    const horizontal = chart.options.indexAxis === 'y';
+
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      if (dataset.type === 'line') return; // เส้น target/commit ไม่ต้องมีตัวเลขกำกับ
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (!meta || meta.hidden) return;
+      const stacked = !!dataset.stack;
+
+      meta.data.forEach((el, index) => {
+        const value = dataset.data[index];
+        if (value === undefined || value === null || value === 0) return;
+
+        const props = el.getProps(['x', 'y', 'base', 'width', 'height'], true);
+        ctx.save();
+        ctx.fillStyle = stacked ? '#ffffff' : (opts.color || '#5f5f5f');
+
+        if (horizontal) {
+          const barLength = Math.abs(props.x - (props.base ?? props.x)) || 24;
+          const barThickness = props.height || 20;
+          const basis = stacked ? Math.min(barLength, barThickness) : barThickness;
+          const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 2.2)));
+          ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
+          ctx.textBaseline = 'middle';
+          if (stacked) {
+            ctx.textAlign = 'center';
+            ctx.fillText(opts.formatter(value), (props.x + props.base) / 2, props.y);
+          } else {
+            ctx.textAlign = 'left';
+            ctx.fillText(opts.formatter(value), props.x + 4, props.y);
+          }
+        } else {
+          const barWidth = props.width || 24;
+          const barHeight = Math.abs((props.base ?? props.y) - props.y) || 20;
+          const basis = stacked ? Math.min(barWidth, barHeight) : barWidth;
+          const fontSize = Math.max(7, Math.min(11, Math.floor(basis / 3.2)));
+          ctx.font = `${fontSize}px 'IBM Plex Mono', monospace`;
+          ctx.textAlign = 'center';
+          if (stacked) {
+            ctx.textBaseline = 'middle';
+            ctx.fillText(opts.formatter(value), props.x, (props.y + props.base) / 2);
+          } else {
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(opts.formatter(value), props.x, props.y - 3);
+          }
+        }
+        ctx.restore();
+      });
+    });
+  }
+};
 
 function renderTrendChart() {
   if (!CHARTJS_AVAILABLE) return;
@@ -877,25 +934,12 @@ function renderTrendChart() {
 
   const stackedMode = chartViewMode === 'stacked';
 
-  function autoFontSize(ctx) {
-    try {
-      const meta = ctx.chart.getDatasetMeta(ctx.datasetIndex);
-      const el = meta.data[ctx.dataIndex];
-      if (!el) return 9;
-      const w = el.width || 30;
-      const h = Math.abs(el.height || 30);
-      const basis = stackedMode ? Math.min(w, h) : w;
-      return Math.max(7, Math.min(11, Math.floor(basis / 3.2)));
-    } catch (e) {
-      return 9;
-    }
-  }
-
   const ctx = document.getElementById('chart-trend');
   if (charts.trend) charts.trend.destroy();
   charts.trend = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets },
+    plugins: [barValueLabelsPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -904,14 +948,9 @@ function renderTrendChart() {
           display: datasets.length > 1,
           labels: { color: CHART_COLORS.text, font: { family: "'IBM Plex Mono', monospace", size: 10.5 }, boxWidth: 12 }
         },
-        datalabels: {
-          display: DATALABELS_AVAILABLE, // dataset เส้น (target/commit) ปิดไว้ที่ตัว dataset เองอยู่แล้ว
-          anchor: stackedMode ? 'center' : 'end',
-          align: stackedMode ? 'center' : 'end',
-          offset: stackedMode ? 0 : 2,
-          clip: false,
-          color: stackedMode ? '#ffffff' : CHART_COLORS.text,
-          font: { family: "'IBM Plex Mono', monospace", size: autoFontSize },
+        barValueLabels: {
+          display: true,
+          color: CHART_COLORS.text,
           formatter: v => `${formatPercent(v)}%`
         },
         tooltip: {
@@ -969,6 +1008,7 @@ function renderBreakdownChart(canvasId, grouped, chartsObj, key) {
         maxBarThickness: 26
       }]
     },
+    plugins: [barValueLabelsPlugin],
     options: baseChartOptions({ legend: false, indexAxis: 'y' })
   });
 }
@@ -985,14 +1025,9 @@ function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: legend },
-      datalabels: {
-        display: DATALABELS_AVAILABLE,
-        anchor: 'end',
-        align: 'end',
-        offset: 2,
-        clip: false,
+      barValueLabels: {
+        display: true,
         color: CHART_COLORS.text,
-        font: { family: "'IBM Plex Mono', monospace", size: 10 },
         formatter: v => formatNumber(v)
       },
       tooltip: {

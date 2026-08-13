@@ -341,7 +341,7 @@ th:focus-visible {
 .chart-empty {
   position: absolute;
   inset: 0;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
@@ -349,6 +349,7 @@ th:focus-visible {
   color: var(--text-faint);
   pointer-events: none;
 }
+.chart-empty:not([hidden]) { display: flex; }
 
 @media (max-width: 560px) {
   .chart-frame { height: 220px; }

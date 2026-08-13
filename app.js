@@ -51,8 +51,13 @@ const CHART_COLORS_BY_THEME = {
 let CHART_COLORS = CHART_COLORS_BY_THEME.light;
 
 const CHARTJS_AVAILABLE = typeof Chart !== 'undefined';
+const DATALABELS_AVAILABLE = typeof ChartDataLabels !== 'undefined';
 if (CHARTJS_AVAILABLE) {
   Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  if (DATALABELS_AVAILABLE) {
+    Chart.register(ChartDataLabels);
+    Chart.defaults.set('plugins.datalabels', { display: false }); // ปิดไว้เป็นค่าเริ่มต้น เปิดเฉพาะ chart ที่ต้องการทีละตัว
+  }
 }
 
 function getCurrentTheme() {
@@ -79,6 +84,7 @@ let charts = { trend: null, dept: null, type: null };
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initTabs();
+  initSidebarToggle();
   initPinGate();
   loadData();
   setInterval(loadData, AUTO_REFRESH_MS);
@@ -144,6 +150,30 @@ function switchTab(tab) {
     panel.hidden = panel.id !== `tab-${tab}`;
   });
   document.getElementById('filters-kpi-block').hidden = (tab === 'inputdata');
+}
+
+// ============================================================
+// SIDEBAR SHOW/HIDE
+// ============================================================
+const SIDEBAR_STORAGE_KEY = 'tsis100p-sidebar-hidden';
+
+function initSidebarToggle() {
+  const btn = document.getElementById('sidebar-toggle-btn');
+  const shell = document.querySelector('.app-shell');
+  let hidden = false;
+  try { hidden = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1'; } catch (e) { /* ignore */ }
+  applySidebarState(shell, btn, hidden);
+
+  btn.addEventListener('click', () => {
+    hidden = !shell.classList.contains('sidebar-hidden');
+    applySidebarState(shell, btn, hidden);
+    try { localStorage.setItem(SIDEBAR_STORAGE_KEY, hidden ? '1' : '0'); } catch (e) { /* ignore */ }
+  });
+}
+
+function applySidebarState(shell, btn, hidden) {
+  shell.classList.toggle('sidebar-hidden', hidden);
+  btn.title = hidden ? 'Show sidebar' : 'Hide sidebar';
 }
 
 // ============================================================
@@ -479,8 +509,14 @@ function renderKPIs(records, salesRecords) {
     csPercentSubEl.textContent = 'no sales data for this scope';
   }
 
-  document.getElementById('kpi-total-cs').textContent = formatNumber(totalCs);
-  document.getElementById('kpi-total-sales').textContent = formatNumber(totalSales);
+  const csPercentEl2 = document.getElementById('kpi-total-cs');
+  csPercentEl2.textContent = formatNumber(totalCs);
+  csPercentEl2.title = formatNumber(totalCs);
+
+  const totalSalesEl = document.getElementById('kpi-total-sales');
+  totalSalesEl.textContent = formatNumber(totalSales);
+  totalSalesEl.title = formatNumber(totalSales);
+
   document.getElementById('kpi-project-count').textContent = projectCount;
   document.getElementById('kpi-top-dept').textContent = topDept ? topDept[0] : '—';
   document.getElementById('kpi-top-dept-sub').textContent = topDept ? `${formatNumber(topDept[1])} CS.` : 'no data';
@@ -533,6 +569,16 @@ function renderTrendChart(records, salesRecords) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
+        datalabels: {
+          display: DATALABELS_AVAILABLE,
+          anchor: 'end',
+          align: 'end',
+          offset: 2,
+          clip: false,
+          color: CHART_COLORS.text,
+          font: { family: "'IBM Plex Mono', monospace", size: 10 },
+          formatter: v => `${formatPercent(v)}%`
+        },
         tooltip: {
           backgroundColor: '#1e252b',
           borderColor: '#2a3540',
@@ -547,7 +593,8 @@ function renderTrendChart(records, salesRecords) {
         y: {
           grid: { color: CHART_COLORS.grid, drawTicks: false },
           ticks: { font: { size: 10.5 }, callback: v => `${v}%` },
-          beginAtZero: true
+          beginAtZero: true,
+          grace: '12%'
         }
       }
     }
@@ -596,6 +643,16 @@ function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: legend },
+      datalabels: {
+        display: DATALABELS_AVAILABLE,
+        anchor: 'end',
+        align: 'end',
+        offset: 2,
+        clip: false,
+        color: CHART_COLORS.text,
+        font: { family: "'IBM Plex Mono', monospace", size: 10 },
+        formatter: v => formatNumber(v)
+      },
       tooltip: {
         backgroundColor: '#1e252b',
         borderColor: '#2a3540',
@@ -606,8 +663,8 @@ function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {
       }
     },
     scales: {
-      x: { grid: { color: CHART_COLORS.grid, drawTicks: false }, ticks: { font: { size: 10.5 } } },
-      y: { grid: { color: CHART_COLORS.grid, drawTicks: false }, ticks: { font: { size: 10.5 } }, beginAtZero: true }
+      x: { grid: { color: CHART_COLORS.grid, drawTicks: false }, ticks: { font: { size: 10.5 } }, grace: indexAxis === 'y' ? '12%' : undefined },
+      y: { grid: { color: CHART_COLORS.grid, drawTicks: false }, ticks: { font: { size: 10.5 } }, beginAtZero: true, grace: indexAxis === 'x' ? '12%' : undefined }
     }
   };
 }

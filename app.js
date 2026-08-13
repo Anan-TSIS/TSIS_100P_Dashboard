@@ -1,7 +1,25 @@
 // ============================================================
-// CONFIG — แก้ตรงนี้ถ้า URL ของ Web App เปลี่ยน (redeploy ใหม่)
+// CONFIG
 // ============================================================
-const API_URL = 'https://script.google.com/macros/s/AKfycbxUkEqW7hit0LdS1QTViUkWNpgAYx8n3qgps7a-WNpSv8cC0ABNvjGOKKVYdX5KPWpC/exec';
+// เปลี่ยนมาดึงข้อมูลตรงจาก Google Sheets ผ่าน Google Visualization API (gviz)
+// แทน Apps Script Web App (doGet) เพราะ gviz เป็นฟีเจอร์หลักของ Sheets เอง
+// เสถียรกว่ามาก ไม่มี cold start / ไม่มีปัญหา redirect ล่มเป็นระยะแบบ Apps Script
+//
+// ข้อกำหนด: ไฟล์ Google Sheet ต้องแชร์เป็น "Anyone with the link — Viewer"
+// (Apps Script ยังใช้ตามปกติสำหรับปุ่ม "Generate All" ใน Sheets ไม่กระทบส่วนนี้)
+const SHEET_ID = '1ZSIheE3Tva3UgevtJwu1u-RXL3MyCHDwCSRXC_C4o9Y';
+const GVIZ_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+
+const MASTER_LOG_SHEET_NAME = 'Master_Log';
+const MASTER_LOG_SALE_SHEET_NAME = 'Master_Log_sale';
+
+// ลำดับคอลัมน์ต้องตรงกับลำดับจริงในแต่ละ sheet (ซ้าย → ขวา)
+const MASTER_LOG_COLUMN_KEYS = [
+  'site', 'fiscalYear', 'registNo', 'projectType', 'projectName', 'dept',
+  'material', 'materialName', 'rawMaterial', 'createDate', 'postingDate',
+  'costingElement', 'before', 'month', 'after', 'diff', 'qty', 'cs'
+];
+const MASTER_LOG_SALE_COLUMN_KEYS = ['fiscalYear', 'site', 'month', 'salesAmount'];
 
 const MONTH_ORDER = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
@@ -112,15 +130,50 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function gvizUrl(sheetName) {
+  return `${GVIZ_BASE}?tqx=out:json&sheet=${encodeURIComponent(sheetName)}&headers=1`;
+}
+
+/**
+ * gviz ตอบกลับมาเป็น text ห่อด้วย google.visualization.Query.setResponse({...});
+ * ต้องแกะห่อก่อนค่อย JSON.parse
+ */
+function parseGvizResponse(text) {
+  const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/);
+  if (!match) throw new Error('รูปแบบข้อมูลจาก Google Sheets ไม่ตรงตามที่คาด (gviz)');
+  return JSON.parse(match[1]);
+}
+
+async function fetchGvizSheet(sheetName) {
+  const res = await fetch(gvizUrl(sheetName), { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status} (${sheetName})`);
+  const text = await res.text();
+  return parseGvizResponse(text);
+}
+
+function gvizRowsToObjects(gvizJson, columnKeys) {
+  const rows = (gvizJson.table && gvizJson.table.rows) || [];
+  return rows.map(row => {
+    const obj = {};
+    columnKeys.forEach((key, i) => {
+      const cell = row.c && row.c[i];
+      obj[key] = cell ? cell.v : null;
+    });
+    return obj;
+  });
+}
+
 async function fetchDataWithRetry() {
   let lastError;
   for (let attempt = 1; attempt <= MAX_FETCH_RETRIES; attempt++) {
     try {
-      const res = await fetch(API_URL, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const payload = await res.json();
-      if (!payload.success) throw new Error(payload.error || 'API returned success:false');
-      return payload; // สำเร็จ — คืนค่าทันที ไม่ต้อง retry ต่อ
+      const [costJson, saleJson] = await Promise.all([
+        fetchGvizSheet(MASTER_LOG_SHEET_NAME),
+        fetchGvizSheet(MASTER_LOG_SALE_SHEET_NAME)
+      ]);
+      const data = gvizRowsToObjects(costJson, MASTER_LOG_COLUMN_KEYS);
+      const sales = gvizRowsToObjects(saleJson, MASTER_LOG_SALE_COLUMN_KEYS);
+      return { success: true, count: data.length, data, salesCount: sales.length, sales };
     } catch (err) {
       lastError = err;
       if (attempt < MAX_FETCH_RETRIES) {

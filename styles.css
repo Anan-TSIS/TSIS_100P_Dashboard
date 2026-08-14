@@ -466,6 +466,16 @@ th:focus-visible {
 }
 .chart-frame-wide { height: 400px; }
 
+.compare-overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .chart-empty {
   position: absolute;
   inset: 0;
@@ -765,7 +775,7 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   cursor: pointer;
 }
 
-.view-mode-btn {
+.view-mode-btn, .cmp-view-mode-btn {
   font-family: var(--font-mono);
   font-size: 11.5px;
   letter-spacing: 0.04em;
@@ -776,13 +786,14 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   color: var(--text-muted);
   cursor: pointer;
 }
-.view-mode-btn:last-child { border-right: none; }
-.view-mode-btn:hover { color: var(--text-primary); }
-.view-mode-btn.active {
+.view-mode-btn:last-child, .cmp-view-mode-btn:last-child { border-right: none; }
+.view-mode-btn:hover, .cmp-view-mode-btn:hover { color: var(--text-primary); }
+.view-mode-btn.active, .cmp-view-mode-btn.active {
   background: var(--accent-savings);
   color: #fff;
   font-weight: 600;
 }
+.cmp-view-mode-btn.active { background: var(--accent-safety); }
 
 #compare-toggle-btn.active {
   background: var(--accent-safety);

@@ -116,6 +116,23 @@
           <label for="cmp-month">MONTH</label>
           <select id="cmp-month"><option value="">All</option></select>
         </div>
+
+        <div class="chart-controls">
+          <div class="view-mode-group" role="group" aria-label="Compare chart view mode">
+            <button class="cmp-view-mode-btn active" data-view-mode="normal">Normal</button>
+            <button class="cmp-view-mode-btn" data-view-mode="clustered">Clustered</button>
+            <button class="cmp-view-mode-btn" data-view-mode="stacked">Stacked</button>
+          </div>
+          <div class="split-by-inline" id="cmp-split-by-group" hidden>
+            <label for="cmp-split-by-select">SPLIT BY</label>
+            <select id="cmp-split-by-select">
+              <option value="na">N/A</option>
+              <option value="site" selected>Site</option>
+              <option value="dept">Dept.</option>
+              <option value="projectType">Project Type</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -131,6 +148,7 @@
 
           <div class="chart-frame chart-frame-wide">
             <canvas id="chart-trend"></canvas>
+            <canvas id="chart-trend-compare" class="compare-overlay-canvas" hidden></canvas>
             <span id="chart-trend-empty" class="chart-empty" hidden>No CS. data for this filter</span>
           </div>
         </div>

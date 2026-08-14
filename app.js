@@ -77,6 +77,9 @@ let RAW_TARGETS = [];
 let chartViewMode = 'normal'; // 'normal' | 'clustered' | 'stacked'
 let chartSplitBy = 'site'; // 'site' | 'dept' | 'projectType' — ใช้เมื่อ chartViewMode != 'normal'
 let compareEnabled = false;
+let compareViewMode = 'normal';
+let compareSplitBy = 'site';
+let compareChartInstance = null; // Chart.js instance ของกราฟ overlay (canvas แยกต่างหาก)
 let sortState = { key: 'totalCs', dir: 'desc' };
 let charts = { trend: null, dept: null, type: null };
 
@@ -228,6 +231,7 @@ function initChartControls() {
   // เผื่อกัน state ค้างจาก HTML — บังคับซ่อน compare filters ตอนเริ่มเสมอ
   document.getElementById('compare-filters').hidden = true;
   document.getElementById('split-by-group').hidden = true;
+  document.getElementById('cmp-split-by-group').hidden = true;
 
   document.querySelectorAll('.view-mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -243,11 +247,26 @@ function initChartControls() {
     render();
   });
 
+  document.querySelectorAll('.cmp-view-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      compareViewMode = btn.dataset.viewMode;
+      document.querySelectorAll('.cmp-view-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('cmp-split-by-group').hidden = (compareViewMode === 'normal');
+      render();
+    });
+  });
+
+  document.getElementById('cmp-split-by-select').addEventListener('change', e => {
+    compareSplitBy = e.target.value;
+    render();
+  });
+
   const compareBtn = document.getElementById('compare-toggle-btn');
   compareBtn.addEventListener('click', () => {
     compareEnabled = !compareEnabled;
     compareBtn.classList.toggle('active', compareEnabled);
     document.getElementById('compare-filters').hidden = !compareEnabled;
+    if (!compareEnabled) destroyCompareChart();
     render();
   });
 
@@ -776,11 +795,13 @@ function getSplitValues(filters, dimension) {
  * colorFamily: 'savings' (ชุดหลัก, โทนเขียว) หรือ 'safety' (ชุด compare, โทนส้ม)
  * labelSuffix: ต่อท้ายชื่อ series เช่น ' (cmp)' เวลาเป็นชุด compare
  */
-function buildModeDatasets(filters, colorFamily, labelSuffix) {
-  if ((chartViewMode === 'clustered' || chartViewMode === 'stacked') && chartSplitBy !== 'na') {
-    const dimension = chartSplitBy;
+function buildModeDatasets(filters, colorFamily, labelSuffix, viewMode, splitBy) {
+  viewMode = viewMode || chartViewMode;
+  splitBy = splitBy || chartSplitBy;
+  if ((viewMode === 'clustered' || viewMode === 'stacked') && splitBy !== 'na') {
+    const dimension = splitBy;
     const values = getSplitValues(filters, dimension);
-    const stacked = chartViewMode === 'stacked';
+    const stacked = viewMode === 'stacked';
     const shades = colorShades(colorFamily, Math.max(values.length, 1));
 
     let hasAnyData = false;
@@ -968,19 +989,32 @@ const barValueLabelsPlugin = {
   }
 };
 
+function maxOfDatasets(datasets) {
+  let max = 0;
+  datasets.forEach(ds => {
+    if (ds.type === 'line') return; // เส้น target/commit ไม่นับรวมตอนหา max ของแท่ง
+    (ds.data || []).forEach(v => {
+      if (typeof v === 'number' && Number.isFinite(v) && v > max) max = v;
+    });
+  });
+  return max;
+}
+
+function destroyCompareChart() {
+  if (compareChartInstance) {
+    compareChartInstance.destroy();
+    compareChartInstance = null;
+  }
+  document.getElementById('chart-trend-compare').hidden = true;
+}
+
 function renderTrendChart() {
   if (!CHARTJS_AVAILABLE) return;
 
   const labels = [...MONTH_ORDER, 'AVG.'];
-  const primary = buildModeDatasets(getActiveFilters(), 'savings', '');
+  const primary = buildModeDatasets(getActiveFilters(), 'savings', '', chartViewMode, chartSplitBy);
   let datasets = [...primary.datasets];
   let hasData = primary.hasData;
-
-  if (compareEnabled) {
-    const secondary = buildModeDatasets(getCompareFilters(), 'safety', ' (cmp)');
-    datasets = datasets.concat(secondary.datasets);
-    hasData = hasData || secondary.hasData;
-  }
 
   const targetLines = buildTargetLineDatasets();
   datasets = datasets.concat(targetLines);
@@ -988,6 +1022,18 @@ function renderTrendChart() {
   setChartEmptyState('chart-trend-empty', !hasData);
 
   const stackedMode = chartViewMode === 'stacked';
+
+  // ---------- Compare: กราฟซ้อนแยกต่างหาก แบบโปร่งใส ไม่รวม dataset เดียวกัน ----------
+  let sharedYMax = null;
+  if (compareEnabled) {
+    const compare = buildModeDatasets(getCompareFilters(), 'safety', '', compareViewMode, compareSplitBy);
+    const primaryMax = maxOfDatasets(primary.datasets);
+    const compareMax = maxOfDatasets(compare.datasets);
+    sharedYMax = Math.max(primaryMax, compareMax, 0.01) * 1.15;
+    renderCompareChart(labels, compare.datasets, sharedYMax);
+  } else {
+    destroyCompareChart();
+  }
 
   const ctx = document.getElementById('chart-trend');
   if (charts.trend) charts.trend.destroy();
@@ -1030,7 +1076,49 @@ function renderTrendChart() {
           grid: { color: CHART_COLORS.grid, drawTicks: false },
           ticks: { font: { size: 10.5 }, callback: v => `${formatPercent(v)}%` },
           beginAtZero: true,
-          grace: '12%'
+          max: sharedYMax || undefined,
+          grace: sharedYMax ? undefined : '12%'
+        }
+      }
+    }
+  });
+}
+
+/**
+ * วาดกราฟ Compare เป็น chart แยกต่างหากบน canvas ที่ซ้อนทับ chart หลักแบบโปร่งใส
+ * (ไม่รวมเป็น dataset เดียวกับกราฟหลัก) แกน Y ใช้ max ร่วมกับกราฟหลักเพื่อให้เทียบกันได้ตรงสเกล
+ */
+function renderCompareChart(labels, datasets, sharedYMax) {
+  const canvas = document.getElementById('chart-trend-compare');
+  canvas.hidden = false;
+
+  const stackedMode = compareViewMode === 'stacked';
+
+  if (compareChartInstance) compareChartInstance.destroy();
+  compareChartInstance = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets },
+    plugins: [barValueLabelsPlugin],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      events: [], // overlay ไม่ต้องรับ hover/click เอง (ให้ pointer-events:none ทาง CSS จัดการ)
+      plugins: {
+        legend: { display: false },
+        barValueLabels: { display: false }, // ปิดตัวเลขบนแท่งของ overlay กันข้อความซ้อนกันดูรก
+        tooltip: { enabled: false }
+      },
+      scales: {
+        x: {
+          stacked: stackedMode,
+          display: false
+        },
+        y: {
+          stacked: stackedMode,
+          display: false,
+          beginAtZero: true,
+          max: sharedYMax
         }
       }
     }

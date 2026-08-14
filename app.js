@@ -276,6 +276,9 @@ function initChartControls() {
       render();
     });
   });
+
+  const clearCompareBtn = document.getElementById('clear-compare-filters-btn');
+  if (clearCompareBtn) clearCompareBtn.addEventListener('click', clearCompareFilters);
 }
 
 // ============================================================
@@ -615,6 +618,33 @@ function updateCompareFilterOptions() {
 
     fillSelect(`cmp-${key}`, sortedValues);
   });
+
+  updateCompareSplitByOptions();
+}
+
+/**
+ * เหมือน updateSplitByOptions() แต่สำหรับชุด Compare — ตัดตัวเลือกใน "Split By"
+ * ของ Compare ออกอัตโนมัติถ้า filter ของ Compare set เองเจาะจงมิตินั้นไว้แล้ว
+ * (คนละชุดกับ filter หลัก ใช้ cmpFilters ของตัวเองล้วนๆ)
+ */
+function updateCompareSplitByOptions() {
+  const f = getCompareFilters();
+  const select = document.getElementById('cmp-split-by-select');
+  const current = select.value;
+
+  const options = [{ value: 'na', label: 'N/A' }];
+  if (!f.site) options.push({ value: 'site', label: 'Site' });
+  if (!f.dept) options.push({ value: 'dept', label: 'Dept.' });
+  if (!f.projectType) options.push({ value: 'projectType', label: 'Project Type' });
+
+  select.innerHTML = options.map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+
+  if (options.some(o => o.value === current)) {
+    select.value = current;
+  } else {
+    select.value = 'na';
+    compareSplitBy = 'na';
+  }
 }
 
 /**
@@ -685,6 +715,18 @@ function clearFilters() {
     document.getElementById(`filter-${key}`).value = '';
   });
   updateFilterOptions();
+  render();
+}
+
+/**
+ * เหมือน clearFilters() แต่ล้างเฉพาะ filter ของชุด Compare (cmp-*)
+ * ไม่ยุ่งกับ filter หลัก
+ */
+function clearCompareFilters() {
+  ['fiscalYear', 'site', 'dept', 'projectType', 'month'].forEach(key => {
+    document.getElementById(`cmp-${key}`).value = '';
+  });
+  updateCompareFilterOptions();
   render();
 }
 
@@ -1023,16 +1065,14 @@ function renderTrendChart() {
 
   const stackedMode = chartViewMode === 'stacked';
 
-  // ---------- Compare: กราฟซ้อนแยกต่างหาก แบบโปร่งใส ไม่รวม dataset เดียวกัน ----------
+  // ---------- คำนวณ sharedYMax ก่อนสร้างกราฟ (ต้องรู้ก่อนเพื่อให้ทั้งสองกราฟใช้สเกลเดียวกัน) ----------
   let sharedYMax = null;
+  let compareBuild = null;
   if (compareEnabled) {
-    const compare = buildModeDatasets(getCompareFilters(), 'safety', '', compareViewMode, compareSplitBy);
+    compareBuild = buildModeDatasets(getCompareFilters(), 'safety', '', compareViewMode, compareSplitBy);
     const primaryMax = maxOfDatasets(primary.datasets);
-    const compareMax = maxOfDatasets(compare.datasets);
+    const compareMax = maxOfDatasets(compareBuild.datasets);
     sharedYMax = Math.max(primaryMax, compareMax, 0.01) * 1.15;
-    renderCompareChart(labels, compare.datasets, sharedYMax);
-  } else {
-    destroyCompareChart();
   }
 
   const ctx = document.getElementById('chart-trend');
@@ -1082,17 +1122,33 @@ function renderTrendChart() {
       }
     }
   });
+
+  // ---------- Compare: กราฟซ้อนแยกต่างหาก แบบโปร่งใส ไม่รวม dataset เดียวกัน ----------
+  // ต้องสร้าง "หลังจาก" กราฟหลักเสร็จแล้วเท่านั้น เพราะต้องใช้ charts.trend.chartArea
+  // (พื้นที่วาดจริงเป็นพิกเซล) มาบังคับให้กราฟ compare วาดทับตำแหน่งเดียวกันเป๊ะๆ
+  // ก่อนหน้านี้กราฟ compare ปิดทั้งแกนและ legend (display:false) ทำให้ Chart.js
+  // ไม่เว้นพื้นที่ขอบให้เลย ในขณะที่กราฟหลักเว้นขอบไว้จริงสำหรับแกน/legend ผลคือ
+  // "พื้นที่วาดกราฟ" ของสองแคนวาสมีขนาด/ตำแหน่งไม่ตรงกัน ทำให้แท่งเหลื่อมกัน
+  if (compareEnabled && compareBuild) {
+    renderCompareChart(labels, compareBuild.datasets, sharedYMax, charts.trend.chartArea);
+  } else {
+    destroyCompareChart();
+  }
 }
 
 /**
  * วาดกราฟ Compare เป็น chart แยกต่างหากบน canvas ที่ซ้อนทับ chart หลักแบบโปร่งใส
  * (ไม่รวมเป็น dataset เดียวกับกราฟหลัก) แกน Y ใช้ max ร่วมกับกราฟหลักเพื่อให้เทียบกันได้ตรงสเกล
+ * primaryChartArea: พื้นที่วาดจริงของกราฟหลัก (พิกเซล) — ใช้บังคับให้ compare วาดทับตำแหน่งเดียวกันเป๊ะ
  */
-function renderCompareChart(labels, datasets, sharedYMax) {
+function renderCompareChart(labels, datasets, sharedYMax, primaryChartArea) {
   const canvas = document.getElementById('chart-trend-compare');
   canvas.hidden = false;
 
   const stackedMode = compareViewMode === 'stacked';
+  const frame = canvas.parentElement;
+  const frameW = frame.clientWidth;
+  const frameH = frame.clientHeight;
 
   if (compareChartInstance) compareChartInstance.destroy();
   compareChartInstance = new Chart(canvas, {
@@ -1104,6 +1160,16 @@ function renderCompareChart(labels, datasets, sharedYMax) {
       maintainAspectRatio: false,
       animation: false,
       events: [], // overlay ไม่ต้องรับ hover/click เอง (ให้ pointer-events:none ทาง CSS จัดการ)
+      // บังคับ padding รอบ plot area ให้เท่ากับของกราฟหลักเป๊ะๆ (พิกเซลต่อพิกเซล)
+      // แทนที่จะปล่อยให้ Chart.js คำนวณเองจากแกน/legend ที่ถูกซ่อนไว้ (ซึ่งจะได้ค่าไม่ตรงกัน)
+      layout: {
+        padding: {
+          left: primaryChartArea.left,
+          right: frameW - primaryChartArea.right,
+          top: primaryChartArea.top,
+          bottom: frameH - primaryChartArea.bottom
+        }
+      },
       plugins: {
         legend: { display: false },
         barValueLabels: { display: false }, // ปิดตัวเลขบนแท่งของ overlay กันข้อความซ้อนกันดูรก

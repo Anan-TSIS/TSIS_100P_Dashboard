@@ -1042,6 +1042,26 @@ function maxOfDatasets(datasets) {
   return max;
 }
 
+/**
+ * ปัดค่า max ของแกน Y ขึ้นเป็นเลข "สวย" (1/2/2.5/5/10 คูณด้วย 10^n) แทนที่จะใช้
+ * ค่าดิบตรงๆ ปกติ Chart.js จะเลือกเลขสวยแบบนี้ให้เองอัตโนมัติ (ผ่าน grace) แต่พอ
+ * เราบังคับ max ตายตัวเพื่อให้กราฟ Compare ใช้สเกลเดียวกับกราฟหลัก (sharedYMax)
+ * มันเลยได้เลขแปลกๆ ที่ไม่ลงตัว (เช่น 2.41%) เทียบกับตอนไม่ compare (2.50%)
+ * ฟังก์ชันนี้แก้ให้ปัดขึ้นเป็นเลขสวยเหมือนกันทั้งสองโหมด
+ */
+function niceCeilingMax(value) {
+  if (!(value > 0)) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+  const normalized = value / magnitude; // อยู่ในช่วง [1, 10)
+  let niceNormalized;
+  if (normalized <= 1) niceNormalized = 1;
+  else if (normalized <= 2) niceNormalized = 2;
+  else if (normalized <= 2.5) niceNormalized = 2.5;
+  else if (normalized <= 5) niceNormalized = 5;
+  else niceNormalized = 10;
+  return niceNormalized * magnitude;
+}
+
 function destroyCompareChart() {
   if (compareChartInstance) {
     compareChartInstance.destroy();
@@ -1072,7 +1092,7 @@ function renderTrendChart() {
     compareBuild = buildModeDatasets(getCompareFilters(), 'safety', '', compareViewMode, compareSplitBy);
     const primaryMax = maxOfDatasets(primary.datasets);
     const compareMax = maxOfDatasets(compareBuild.datasets);
-    sharedYMax = Math.max(primaryMax, compareMax, 0.01) * 1.15;
+    sharedYMax = niceCeilingMax(Math.max(primaryMax, compareMax, 0.01) * 1.15);
   }
 
   const ctx = document.getElementById('chart-trend');

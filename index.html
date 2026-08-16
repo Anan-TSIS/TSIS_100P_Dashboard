@@ -222,6 +222,7 @@
           <input type="text" id="project-search-input" placeholder="พิมพ์เพื่อค้นหา…" autocomplete="off">
         </div>
         <button id="non-value-toggle-btn" class="switch-btn ghost">Project Non-value</button>
+        <button id="project-log-clear-btn" class="switch-btn ghost">Clear filters</button>
         <button id="projectlog-chart-toggle-btn" class="switch-btn ghost">📊 Show chart</button>
         <button id="export-excel-btn" class="switch-btn ghost">⬇ Export Excel</button>
       </div>
@@ -230,12 +231,13 @@
         <div class="panel-head">
           <span class="panel-eyebrow">PROJECT LOG CHART</span>
           <h2>Filtered Data — Monthly</h2>
-          <span class="panel-head-sub">ใช้ผลลัพธ์ที่กรองอยู่ในตารางด้านล่าง (main filter + find + Project Non-value)</span>
+          <span class="panel-head-sub">ใช้ผลลัพธ์ที่กรองอยู่ในตารางด้านล่าง (main filter + find + Project Non-value + ติ๊กเลือกแถว)</span>
         </div>
         <div class="chart-controls">
           <div class="view-mode-group" role="group" aria-label="Project log chart metric">
             <button type="button" class="projectlog-metric-btn active" data-metric="cs">CS.</button>
             <button type="button" class="projectlog-metric-btn" data-metric="qty">Qty</button>
+            <button type="button" class="projectlog-metric-btn" data-metric="ba">B/A</button>
           </div>
         </div>
         <div class="chart-frame">
@@ -252,8 +254,21 @@
         </div>
         <div class="table-scroll">
           <table id="project-table">
+            <colgroup>
+              <col style="width:4%">
+              <col style="width:11%">
+              <col style="width:6%">
+              <col style="width:6%">
+              <col style="width:19%">
+              <col style="width:10%">
+              <col style="width:12%">
+              <col style="width:17%">
+              <col style="width:7%">
+              <col style="width:8%">
+            </colgroup>
             <thead>
               <tr>
+                <th class="checkbox-col"><input type="checkbox" id="project-select-all-checkbox" title="เลือกทั้งหมด — นำไปแสดงที่กราฟ"></th>
                 <th data-sort="registNo">Regist No.</th>
                 <th data-sort="site">Site</th>
                 <th data-sort="fiscalYear">FY</th>
@@ -266,7 +281,7 @@
               </tr>
             </thead>
             <tbody id="project-table-body">
-              <tr><td colspan="9" class="table-empty">Loading data…</td></tr>
+              <tr><td colspan="10" class="table-empty">Loading data…</td></tr>
             </tbody>
           </table>
         </div>

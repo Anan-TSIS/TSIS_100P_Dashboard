@@ -519,34 +519,39 @@ th:focus-visible {
 
 .table-panel { margin-bottom: 20px; }
 
-.table-scroll { overflow-x: auto; }
+.table-scroll { overflow-x: hidden; }
 
 table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: clamp(10px, 1.35vw, 13px);
 }
 
 thead th {
   text-align: left;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.08em;
+  font-size: clamp(8.5px, 1vw, 10.5px);
+  letter-spacing: 0.06em;
   color: var(--text-muted);
-  padding: 8px 10px;
+  padding: clamp(5px, 0.9vw, 8px) clamp(4px, 0.9vw, 10px);
   border-bottom: 2px solid var(--line);
   cursor: pointer;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
   user-select: none;
 }
 thead th:hover { color: var(--accent-safety); }
 thead th.num { text-align: right; }
+thead th.checkbox-col, tbody td.checkbox-col { padding-left: 6px; padding-right: 2px; }
 
 tbody td {
-  padding: 9px 10px;
+  padding: clamp(5px, 0.9vw, 9px) clamp(4px, 0.9vw, 10px);
   border-bottom: 2px solid var(--line);
   font-family: var(--font-body);
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 tbody td.num, thead th.num { text-align: right; font-family: var(--font-mono); }
 tbody tr:hover { background: var(--panel-raised); }
@@ -562,6 +567,14 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
 
 .cs-positive { color: var(--accent-savings); }
 .cs-negative { color: var(--cs-negative); }
+
+.project-row-checkbox,
+#project-select-all-checkbox {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--accent-savings);
+}
 
 /* ---------- Misc ---------- */
 

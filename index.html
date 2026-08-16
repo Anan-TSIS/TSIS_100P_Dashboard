@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body data-theme="light">
@@ -215,6 +216,34 @@
 
     <!-- ============ TAB: Project Log ============ -->
     <section id="tab-projectlog" class="tab-panel" hidden>
+      <div class="control-panel projectlog-controls">
+        <div class="switch-group projectlog-search-group">
+          <label for="project-search-input">FIND (MATERIAL NAME, PROJECT NAME, ETC.)</label>
+          <input type="text" id="project-search-input" placeholder="พิมพ์เพื่อค้นหา…" autocomplete="off">
+        </div>
+        <button id="non-value-toggle-btn" class="switch-btn ghost">Project Non-value</button>
+        <button id="projectlog-chart-toggle-btn" class="switch-btn ghost">📊 Show chart</button>
+        <button id="export-excel-btn" class="switch-btn ghost">⬇ Export Excel</button>
+      </div>
+
+      <section id="projectlog-chart-panel" class="panel" hidden>
+        <div class="panel-head">
+          <span class="panel-eyebrow">PROJECT LOG CHART</span>
+          <h2>Filtered Data — Monthly</h2>
+          <span class="panel-head-sub">ใช้ผลลัพธ์ที่กรองอยู่ในตารางด้านล่าง (main filter + find + Project Non-value)</span>
+        </div>
+        <div class="chart-controls">
+          <div class="view-mode-group" role="group" aria-label="Project log chart metric">
+            <button type="button" class="projectlog-metric-btn active" data-metric="cs">CS.</button>
+            <button type="button" class="projectlog-metric-btn" data-metric="qty">Qty</button>
+          </div>
+        </div>
+        <div class="chart-frame">
+          <canvas id="chart-projectlog"></canvas>
+          <span id="chart-projectlog-empty" class="chart-empty" hidden>No data for this filter</span>
+        </div>
+      </section>
+
       <section class="panel table-panel">
         <div class="panel-head">
           <span class="panel-eyebrow">PROJECT LOG</span>
@@ -231,11 +260,13 @@
                 <th data-sort="projectName">Project Name</th>
                 <th data-sort="dept">Dept.</th>
                 <th data-sort="projectType">Type</th>
+                <th data-sort="materialName">Material Name</th>
+                <th data-sort="totalQty" class="num">Qty</th>
                 <th data-sort="totalCs" class="num">Total CS.</th>
               </tr>
             </thead>
             <tbody id="project-table-body">
-              <tr><td colspan="7" class="table-empty">Loading data…</td></tr>
+              <tr><td colspan="9" class="table-empty">Loading data…</td></tr>
             </tbody>
           </table>
         </div>

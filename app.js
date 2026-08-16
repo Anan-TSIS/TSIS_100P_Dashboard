@@ -1299,7 +1299,7 @@ function renderCompareChart(labels, datasets, sharedYMax, primaryChartArea) {
       },
       plugins: {
         legend: { display: false },
-        barValueLabels: { display: false }, // ปิดตัวเลขบนแท่งของ overlay กันข้อความซ้อนกันดูรก
+        barValueLabels: { display: true, color: CHART_COLORS.text, mode: 'percent' },
         tooltip: { enabled: false }
       },
       scales: {
@@ -1579,7 +1579,7 @@ function renderProjectLogChart(records) {
           display: datasets.length > 1,
           labels: { color: CHART_COLORS.text, font: { family: "'IBM Plex Mono', monospace", size: 10.5 }, boxWidth: 12 }
         },
-        barValueLabels: { display: datasets.length === 1, color: CHART_COLORS.text, mode: 'number' },
+        barValueLabels: { display: true, color: CHART_COLORS.text, mode: 'number' },
         tooltip: {
           backgroundColor: '#1e252b',
           borderColor: '#2a3540',

@@ -318,12 +318,33 @@ main {
   appearance: none;
   cursor: pointer;
 }
+.switch-group input[type="text"] {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  color: var(--text-primary);
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+}
 .switch-group select:focus-visible,
+.switch-group input[type="text"]:focus-visible,
 .switch-btn:focus-visible,
 th:focus-visible {
   outline: 2px solid var(--accent-savings);
   outline-offset: 2px;
 }
+
+/* ปุ่ม toggle ทั่วไปที่ใช้ class .switch-btn ร่วมกับ .active (เช่น Project Non-value,
+   ปุ่มโชว์/ซ่อนกราฟ) ให้ไฮไลต์เหมือน #compare-toggle-btn.active */
+.switch-btn.active {
+  background: var(--accent-savings);
+  color: #fff;
+  border-color: var(--accent-savings);
+}
+
+.projectlog-controls { margin-bottom: 14px; }
+.projectlog-search-group { min-width: 260px; flex: 1 1 260px; }
 
 /* ---------- KPI plates ---------- */
 
@@ -775,7 +796,7 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   cursor: pointer;
 }
 
-.view-mode-btn, .cmp-view-mode-btn {
+.view-mode-btn, .cmp-view-mode-btn, .projectlog-metric-btn {
   font-family: var(--font-mono);
   font-size: 11.5px;
   letter-spacing: 0.04em;
@@ -786,9 +807,9 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
   color: var(--text-muted);
   cursor: pointer;
 }
-.view-mode-btn:last-child, .cmp-view-mode-btn:last-child { border-right: none; }
-.view-mode-btn:hover, .cmp-view-mode-btn:hover { color: var(--text-primary); }
-.view-mode-btn.active, .cmp-view-mode-btn.active {
+.view-mode-btn:last-child, .cmp-view-mode-btn:last-child, .projectlog-metric-btn:last-child { border-right: none; }
+.view-mode-btn:hover, .cmp-view-mode-btn:hover, .projectlog-metric-btn:hover { color: var(--text-primary); }
+.view-mode-btn.active, .cmp-view-mode-btn.active, .projectlog-metric-btn.active {
   background: var(--accent-savings);
   color: #fff;
   font-weight: 600;

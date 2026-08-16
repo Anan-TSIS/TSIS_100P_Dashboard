@@ -81,7 +81,14 @@ let compareViewMode = 'normal';
 let compareSplitBy = 'site';
 let compareChartInstance = null; // Chart.js instance ของกราฟ overlay (canvas แยกต่างหาก)
 let sortState = { key: 'totalCs', dir: 'desc' };
-let charts = { trend: null, dept: null, type: null };
+let charts = { trend: null, dept: null, type: null, projectLog: null };
+
+// ---------- Project Log: advanced find / non-value filter / chart ----------
+let projectSearchText = '';
+let nonValueOnly = false;
+let projectLogChartVisible = false;
+let projectLogChartMetric = 'cs'; // 'cs' | 'qty'
+let LAST_PROJECT_LOG_ROWS = []; // แคชผลลัพธ์ล่าสุดของตาราง Project Log ไว้ใช้ตอน Export Excel
 
 // ============================================================
 // INIT
@@ -92,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSidebarToggle();
   initPinGate();
   initChartControls();
+  initProjectLogControls();
   initQrModal();
   loadData();
   setInterval(loadData, AUTO_REFRESH_MS);
@@ -112,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         sortState = { key, dir: key === 'totalCs' ? 'desc' : 'asc' };
       }
-      renderTable(getFilteredRecords());
+      updateProjectLog(getFilteredRecords());
     });
   });
 });
@@ -308,6 +316,58 @@ const INPUT_LINKS = [
   }
 ];
 
+/**
+ * ผูก event ของ controls ใหม่ทั้งหมดในแท็บ Project Log: advanced find (พิมพ์ค้นหา),
+ * ปุ่ม Project Non-value, ปุ่มโชว์/ซ่อนกราฟรายเดือน, ปุ่มสลับ CS./Qty และปุ่ม Export Excel
+ */
+function initProjectLogControls() {
+  let searchDebounceTimer = null;
+  const searchInput = document.getElementById('project-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(() => {
+        projectSearchText = searchInput.value;
+        updateProjectLog(getFilteredRecords());
+      }, 200); // debounce เล็กน้อยกันเรียก render รัวๆ ทุกตัวอักษร
+    });
+  }
+
+  const nonValueBtn = document.getElementById('non-value-toggle-btn');
+  if (nonValueBtn) {
+    nonValueBtn.addEventListener('click', () => {
+      nonValueOnly = !nonValueOnly;
+      nonValueBtn.classList.toggle('active', nonValueOnly);
+      updateProjectLog(getFilteredRecords());
+    });
+  }
+
+  const chartToggleBtn = document.getElementById('projectlog-chart-toggle-btn');
+  const chartPanel = document.getElementById('projectlog-chart-panel');
+  if (chartToggleBtn && chartPanel) {
+    chartToggleBtn.addEventListener('click', () => {
+      projectLogChartVisible = !projectLogChartVisible;
+      chartPanel.hidden = !projectLogChartVisible;
+      chartToggleBtn.classList.toggle('active', projectLogChartVisible);
+      chartToggleBtn.textContent = projectLogChartVisible ? '📊 Hide chart' : '📊 Show chart';
+      if (projectLogChartVisible) updateProjectLog(getFilteredRecords());
+    });
+  }
+
+  document.querySelectorAll('.projectlog-metric-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      projectLogChartMetric = btn.dataset.metric;
+      document.querySelectorAll('.projectlog-metric-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.metric === projectLogChartMetric);
+      });
+      updateProjectLog(getFilteredRecords());
+    });
+  });
+
+  const exportBtn = document.getElementById('export-excel-btn');
+  if (exportBtn) exportBtn.addEventListener('click', exportProjectLogToExcel);
+}
+
 function initPinGate() {
   document.getElementById('pin-submit-btn').addEventListener('click', handlePinSubmit);
   document.getElementById('pin-lock-btn').addEventListener('click', lockPinGate);
@@ -479,8 +539,11 @@ function normalizeRecord(r) {
     projectType: r.projectType || 'Unspecified',
     projectName: r.projectName || '',
     dept: r.dept || 'Unspecified',
+    material: r.material || '',
+    materialName: r.materialName || '',
     costingElement: r.costingElement || '',
     month: normalizeMonthLabel(r.month),
+    qty: toNumber(r.qty),
     cs: toNumber(r.cs)
   };
 }
@@ -537,7 +600,7 @@ function toNumber(v) {
 function setLoadingState() {
   document.getElementById('last-loaded').textContent = 'loading…';
   document.getElementById('project-table-body').innerHTML =
-    '<tr><td colspan="7" class="table-empty">Loading data…</td></tr>';
+    '<tr><td colspan="9" class="table-empty">Loading data…</td></tr>';
 }
 
 // ============================================================
@@ -740,7 +803,7 @@ function render() {
   try { renderTrendChart(); } catch (e) { console.error('renderTrendChart failed:', e); } // อ่าน filter หลัก/compare และ view mode เองข้างใน
   try { renderDeptChart(filtered); } catch (e) { console.error('renderDeptChart failed:', e); }
   try { renderTypeChart(filtered); } catch (e) { console.error('renderTypeChart failed:', e); }
-  try { renderTable(filtered); } catch (e) { console.error('renderTable failed:', e); }
+  try { updateProjectLog(filtered); } catch (e) { console.error('updateProjectLog failed:', e); }
 }
 
 function renderKPIs(records, salesRecords) {
@@ -1275,9 +1338,31 @@ function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {
   };
 }
 
-function renderTable(records) {
+/**
+ * Pipeline หลักของแท็บ Project Log — เรียกทุกครั้งที่ filter หลัก/search/toggle
+ * เปลี่ยน ทำ 3 ขั้นตอน: (1) group ข้อมูลดิบเป็นรายโปรเจกต์ (2) กรองด้วย advanced
+ * find + Project Non-value ต่อจากผลลัพธ์ข้อ 1 (3) sort แล้ว render ตาราง + กราฟ
+ */
+function updateProjectLog(baseRecords) {
+  const rows = computeProjectLogRows(baseRecords);
+  LAST_PROJECT_LOG_ROWS = rows;
+  renderProjectTable(rows);
+
+  // กราฟใช้ข้อมูลระดับแถวดิบ (ราย material/costing element/เดือน) เฉพาะของโปรเจกต์
+  // ที่ผ่านตัวกรอง (search + non-value) แล้วเท่านั้น ให้ตรงกับสิ่งที่ตารางแสดงอยู่
+  const finalRegistNos = new Set(rows.map(p => p.registNo));
+  const chartRecords = baseRecords.filter(r => finalRegistNos.has(r.registNo));
+  if (projectLogChartVisible) renderProjectLogChart(chartRecords);
+}
+
+/**
+ * Group RAW_RECORDS (ที่ผ่าน main filter มาแล้ว) เป็นรายโปรเจกต์ (1 แถวต่อ Regist No.)
+ * รวม Material Name + Total Qty เพิ่มจากเดิม แล้วกรองด้วย advanced find text +
+ * ปุ่ม "Project Non-value" (เฉพาะโปรเจกต์ที่ Total CS. = 0) ต่อท้าย
+ */
+function computeProjectLogRows(baseRecords) {
   const projects = {};
-  records.forEach(r => {
+  baseRecords.forEach(r => {
     if (!projects[r.registNo]) {
       projects[r.registNo] = {
         registNo: r.registNo,
@@ -1286,25 +1371,49 @@ function renderTable(records) {
         projectName: r.projectName,
         dept: r.dept,
         projectType: r.projectType,
-        totalCs: 0
+        materialName: '',
+        totalCs: 0,
+        totalQty: 0
       };
     }
-    projects[r.registNo].totalCs += r.cs;
+    const p = projects[r.registNo];
+    p.totalCs += r.cs;
+    p.totalQty += r.qty;
+    if (!p.materialName && r.materialName) p.materialName = r.materialName;
   });
 
   let rows = Object.values(projects);
+
+  const searchText = projectSearchText.trim().toLowerCase();
+  if (searchText) {
+    rows = rows.filter(p => {
+      const haystack = [p.registNo, p.projectName, p.dept, p.projectType, p.materialName]
+        .map(v => String(v || '').toLowerCase())
+        .join(' ');
+      return haystack.includes(searchText);
+    });
+  }
+
+  if (nonValueOnly) {
+    rows = rows.filter(p => p.totalCs === 0);
+  }
+
   rows.sort((a, b) => {
     const { key, dir } = sortState;
     const mult = dir === 'asc' ? 1 : -1;
-    if (key === 'totalCs') return (a.totalCs - b.totalCs) * mult;
+    if (key === 'totalCs' || key === 'totalQty') return (a[key] - b[key]) * mult;
     return String(a[key]).localeCompare(String(b[key])) * mult;
   });
 
+  return rows;
+}
+
+function renderProjectTable(rows) {
   const tbody = document.getElementById('project-table-body');
   document.getElementById('table-count').textContent = `${rows.length} projects`;
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="table-empty">No projects match the current filters</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="table-empty">No projects match the current filters</td></tr>';
     return;
   }
 
@@ -1316,9 +1425,114 @@ function renderTable(records) {
       <td>${escapeHtml(p.projectName)}</td>
       <td>${escapeHtml(p.dept)}</td>
       <td>${escapeHtml(p.projectType)}</td>
+      <td>${escapeHtml(p.materialName)}</td>
+      <td class="num">${formatNumber(p.totalQty)}</td>
       <td class="num ${p.totalCs >= 0 ? 'cs-positive' : 'cs-negative'}">${formatNumber(p.totalCs)}</td>
     </tr>
   `).join('');
+}
+
+/**
+ * กราฟรายเดือนของแท็บ Project Log — แสดง CS. หรือ Qty (สลับได้) เป็น 12 เดือน + AVG.
+ * (แท่งที่ 13 = ค่าเฉลี่ยของ 12 เดือน) ซ่อนไว้เป็นค่าเริ่มต้น เปิดผ่านปุ่ม show/hide
+ */
+function renderProjectLogChart(records) {
+  if (!CHARTJS_AVAILABLE) return;
+  const canvas = document.getElementById('chart-projectlog');
+  if (!canvas) return;
+
+  const metric = projectLogChartMetric; // 'cs' | 'qty'
+  const byMonth = groupSum(records, r => r.month, r => (metric === 'qty' ? r.qty : r.cs));
+  const monthlyValues = MONTH_ORDER.map(m => byMonth[m] || 0);
+  const avg = monthlyValues.reduce((a, b) => a + b, 0) / (monthlyValues.length || 1);
+  const dataValues = [...monthlyValues, avg];
+  const labels = [...MONTH_ORDER, 'AVG.'];
+
+  const hasData = monthlyValues.some(v => v !== 0);
+  setChartEmptyState('chart-projectlog-empty', !hasData);
+
+  if (charts.projectLog) charts.projectLog.destroy();
+  charts.projectLog = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: metric === 'qty' ? 'Qty' : 'CS.',
+        data: dataValues,
+        backgroundColor: CHART_COLORS.savingsFaint,
+        borderColor: CHART_COLORS.savings,
+        borderWidth: 1.5,
+        borderRadius: 3,
+        maxBarThickness: 42
+      }]
+    },
+    plugins: [barValueLabelsPlugin],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        barValueLabels: { display: true, color: CHART_COLORS.text, mode: 'number' },
+        tooltip: {
+          backgroundColor: '#1e252b',
+          borderColor: '#2a3540',
+          borderWidth: 1,
+          titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+          bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
+          callbacks: {
+            label: ctx => ` ${formatNumber(ctx.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: CHART_COLORS.grid, drawTicks: false },
+          ticks: { font: { size: 10.5 } }
+        },
+        y: {
+          grid: { color: CHART_COLORS.grid, drawTicks: false },
+          ticks: { font: { size: 10.5 }, callback: v => formatNumber(v) },
+          beginAtZero: true,
+          grace: '12%'
+        }
+      }
+    }
+  });
+}
+
+/**
+ * ส่งออกตาราง Project Log (ตามผลลัพธ์ล่าสุดที่กรองไว้แล้ว — main filter + advanced
+ * find + Project Non-value) เป็นไฟล์ Excel (.xlsx) ให้ดาวน์โหลด ใช้ไลบรารี SheetJS
+ */
+function exportProjectLogToExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('โหลดไลบรารี Excel ไม่สำเร็จ ลองรีเฟรชหน้าเว็บแล้วลองใหม่อีกครั้ง');
+    return;
+  }
+  if (LAST_PROJECT_LOG_ROWS.length === 0) {
+    alert('ไม่มีข้อมูลให้ export ตาม filter ปัจจุบัน');
+    return;
+  }
+
+  const exportRows = LAST_PROJECT_LOG_ROWS.map(p => ({
+    'Regist No.': p.registNo,
+    'Site': p.site,
+    'FY': p.fiscalYear,
+    'Project Name': p.projectName,
+    'Dept.': p.dept,
+    'Type': p.projectType,
+    'Material Name': p.materialName,
+    'Total Qty': p.totalQty,
+    'Total CS.': p.totalCs
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(exportRows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Project Log');
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+  XLSX.writeFile(workbook, `100P_ProjectLog_${stamp}.xlsx`);
 }
 
 // ============================================================

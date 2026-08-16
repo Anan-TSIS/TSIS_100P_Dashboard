@@ -87,8 +87,10 @@ let charts = { trend: null, dept: null, type: null, projectLog: null };
 let projectSearchText = '';
 let nonValueOnly = false;
 let projectLogChartVisible = false;
-let projectLogChartMetric = 'cs'; // 'cs' | 'qty'
+let projectLogChartMetric = 'cs'; // 'cs' | 'qty' | 'ba'
 let LAST_PROJECT_LOG_ROWS = []; // แคชผลลัพธ์ล่าสุดของตาราง Project Log ไว้ใช้ตอน Export Excel
+let LAST_PROJECT_LOG_CHART_RECORDS = []; // แถวดิบของโปรเจกต์ที่กำลังแสดงในตาราง (ก่อนตัดด้วย checkbox)
+let selectedProjectRegistNos = new Set(); // Regist No. ที่ติ๊กถูกไว้ — ถ้าไม่ว่าง กราฟจะโชว์เฉพาะที่ติ๊ก
 
 // ============================================================
 // INIT
@@ -342,6 +344,18 @@ function initProjectLogControls() {
     });
   }
 
+  const projectLogClearBtn = document.getElementById('project-log-clear-btn');
+  if (projectLogClearBtn) {
+    projectLogClearBtn.addEventListener('click', () => {
+      if (searchInput) searchInput.value = '';
+      projectSearchText = '';
+      nonValueOnly = false;
+      if (nonValueBtn) nonValueBtn.classList.remove('active');
+      selectedProjectRegistNos.clear();
+      updateProjectLog(getFilteredRecords());
+    });
+  }
+
   const chartToggleBtn = document.getElementById('projectlog-chart-toggle-btn');
   const chartPanel = document.getElementById('projectlog-chart-panel');
   if (chartToggleBtn && chartPanel) {
@@ -350,7 +364,7 @@ function initProjectLogControls() {
       chartPanel.hidden = !projectLogChartVisible;
       chartToggleBtn.classList.toggle('active', projectLogChartVisible);
       chartToggleBtn.textContent = projectLogChartVisible ? '📊 Hide chart' : '📊 Show chart';
-      if (projectLogChartVisible) updateProjectLog(getFilteredRecords());
+      if (projectLogChartVisible) renderProjectLogChartFromSelection();
     });
   }
 
@@ -360,9 +374,36 @@ function initProjectLogControls() {
       document.querySelectorAll('.projectlog-metric-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.metric === projectLogChartMetric);
       });
-      updateProjectLog(getFilteredRecords());
+      if (projectLogChartVisible) renderProjectLogChartFromSelection();
     });
   });
+
+  // ช่องติ๊กเลือกรายแถว (event delegation เพราะ tbody ถูกวาดใหม่ทุกครั้งด้วย innerHTML)
+  const tbody = document.getElementById('project-table-body');
+  if (tbody) {
+    tbody.addEventListener('change', e => {
+      if (!e.target.classList.contains('project-row-checkbox')) return;
+      const registNo = e.target.dataset.registno;
+      if (e.target.checked) selectedProjectRegistNos.add(registNo);
+      else selectedProjectRegistNos.delete(registNo);
+      updateSelectAllCheckboxState(LAST_PROJECT_LOG_ROWS);
+      if (projectLogChartVisible) renderProjectLogChartFromSelection();
+    });
+  }
+
+  // ช่องติ๊ก "เลือกทั้งหมด" ใน header (เป็น element คงที่ใน HTML ไม่ได้ถูกวาดใหม่)
+  const selectAllCheckbox = document.getElementById('project-select-all-checkbox');
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', () => {
+      if (selectAllCheckbox.checked) {
+        LAST_PROJECT_LOG_ROWS.forEach(p => selectedProjectRegistNos.add(p.registNo));
+      } else {
+        LAST_PROJECT_LOG_ROWS.forEach(p => selectedProjectRegistNos.delete(p.registNo));
+      }
+      renderProjectTable(LAST_PROJECT_LOG_ROWS);
+      if (projectLogChartVisible) renderProjectLogChartFromSelection();
+    });
+  }
 
   const exportBtn = document.getElementById('export-excel-btn');
   if (exportBtn) exportBtn.addEventListener('click', exportProjectLogToExcel);
@@ -543,6 +584,9 @@ function normalizeRecord(r) {
     materialName: r.materialName || '',
     costingElement: r.costingElement || '',
     month: normalizeMonthLabel(r.month),
+    before: toNumber(r.before),
+    after: toNumber(r.after),
+    diff: toNumber(r.diff),
     qty: toNumber(r.qty),
     cs: toNumber(r.cs)
   };
@@ -600,7 +644,7 @@ function toNumber(v) {
 function setLoadingState() {
   document.getElementById('last-loaded').textContent = 'loading…';
   document.getElementById('project-table-body').innerHTML =
-    '<tr><td colspan="9" class="table-empty">Loading data…</td></tr>';
+    '<tr><td colspan="10" class="table-empty">Loading data…</td></tr>';
 }
 
 // ============================================================
@@ -1345,14 +1389,19 @@ function baseChartOptions({ legend = false, indexAxis = 'x' } = {}) {
  */
 function updateProjectLog(baseRecords) {
   const rows = computeProjectLogRows(baseRecords);
+
+  // ตัด Regist No. ที่ติ๊กไว้แต่หลุดออกจากผลลัพธ์ใหม่แล้ว (เช่น เปลี่ยน filter/search)
+  // ออกจาก selection ทิ้งไป กันเลือกค้างของแถวที่มองไม่เห็นแล้ว
+  const validRegistNos = new Set(rows.map(p => p.registNo));
+  Array.from(selectedProjectRegistNos).forEach(rn => {
+    if (!validRegistNos.has(rn)) selectedProjectRegistNos.delete(rn);
+  });
+
   LAST_PROJECT_LOG_ROWS = rows;
   renderProjectTable(rows);
 
-  // กราฟใช้ข้อมูลระดับแถวดิบ (ราย material/costing element/เดือน) เฉพาะของโปรเจกต์
-  // ที่ผ่านตัวกรอง (search + non-value) แล้วเท่านั้น ให้ตรงกับสิ่งที่ตารางแสดงอยู่
-  const finalRegistNos = new Set(rows.map(p => p.registNo));
-  const chartRecords = baseRecords.filter(r => finalRegistNos.has(r.registNo));
-  if (projectLogChartVisible) renderProjectLogChart(chartRecords);
+  LAST_PROJECT_LOG_CHART_RECORDS = baseRecords.filter(r => validRegistNos.has(r.registNo));
+  if (projectLogChartVisible) renderProjectLogChartFromSelection();
 }
 
 /**
@@ -1413,12 +1462,14 @@ function renderProjectTable(rows) {
   document.getElementById('table-count').textContent = `${rows.length} projects`;
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="table-empty">No projects match the current filters</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="table-empty">No projects match the current filters</td></tr>';
+    updateSelectAllCheckboxState(rows);
     return;
   }
 
   tbody.innerHTML = rows.map(p => `
     <tr>
+      <td class="checkbox-col"><input type="checkbox" class="project-row-checkbox" data-registno="${escapeHtml(p.registNo)}" ${selectedProjectRegistNos.has(p.registNo) ? 'checked' : ''}></td>
       <td class="mono">${escapeHtml(p.registNo)}</td>
       <td>${escapeHtml(p.site)}</td>
       <td class="mono">${escapeHtml(p.fiscalYear)}</td>
@@ -1430,49 +1481,105 @@ function renderProjectTable(rows) {
       <td class="num ${p.totalCs >= 0 ? 'cs-positive' : 'cs-negative'}">${formatNumber(p.totalCs)}</td>
     </tr>
   `).join('');
+
+  updateSelectAllCheckboxState(rows);
 }
 
 /**
- * กราฟรายเดือนของแท็บ Project Log — แสดง CS. หรือ Qty (สลับได้) เป็น 12 เดือน + AVG.
- * (แท่งที่ 13 = ค่าเฉลี่ยของ 12 เดือน) ซ่อนไว้เป็นค่าเริ่มต้น เปิดผ่านปุ่ม show/hide
+ * ปรับสถานะ checkbox "เลือกทั้งหมด" ใน header ให้ตรงกับ selection ปัจจุบัน
+ * (ติ๊ก / ไม่ติ๊ก / indeterminate เมื่อเลือกไว้บางส่วน)
+ */
+function updateSelectAllCheckboxState(rows) {
+  const selectAll = document.getElementById('project-select-all-checkbox');
+  if (!selectAll) return;
+  const selectedCount = rows.filter(p => selectedProjectRegistNos.has(p.registNo)).length;
+  if (rows.length === 0 || selectedCount === 0) {
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+  } else if (selectedCount === rows.length) {
+    selectAll.checked = true;
+    selectAll.indeterminate = false;
+  } else {
+    selectAll.checked = false;
+    selectAll.indeterminate = true;
+  }
+}
+
+/**
+ * เลือกชุดข้อมูลที่จะป้อนให้กราฟ: ถ้ามีการติ๊กเลือกโปรเจกต์เฉพาะเจาะจงไว้
+ * (selectedProjectRegistNos ไม่ว่าง) ใช้เฉพาะแถวที่ติ๊ก ไม่งั้นใช้ทุกแถวที่ตารางแสดงอยู่
+ */
+function renderProjectLogChartFromSelection() {
+  const records = selectedProjectRegistNos.size > 0
+    ? LAST_PROJECT_LOG_CHART_RECORDS.filter(r => selectedProjectRegistNos.has(r.registNo))
+    : LAST_PROJECT_LOG_CHART_RECORDS;
+  renderProjectLogChart(records);
+}
+
+/**
+ * กราฟรายเดือนของแท็บ Project Log — 3 โหมด: CS. / Qty (แท่งเดียว) และ B/A
+ * (Before/After/Diff แบบ clustered 3 แท่งต่อเดือน) แสดง 12 เดือน + AVG. (แท่งที่ 13
+ * = ค่าเฉลี่ยของ 12 เดือน) ซ่อนไว้เป็นค่าเริ่มต้น เปิดผ่านปุ่ม show/hide
  */
 function renderProjectLogChart(records) {
   if (!CHARTJS_AVAILABLE) return;
   const canvas = document.getElementById('chart-projectlog');
   if (!canvas) return;
 
-  const metric = projectLogChartMetric; // 'cs' | 'qty'
-  const byMonth = groupSum(records, r => r.month, r => (metric === 'qty' ? r.qty : r.cs));
-  const monthlyValues = MONTH_ORDER.map(m => byMonth[m] || 0);
-  const avg = monthlyValues.reduce((a, b) => a + b, 0) / (monthlyValues.length || 1);
-  const dataValues = [...monthlyValues, avg];
+  const metric = projectLogChartMetric; // 'cs' | 'qty' | 'ba'
   const labels = [...MONTH_ORDER, 'AVG.'];
 
-  const hasData = monthlyValues.some(v => v !== 0);
+  function seriesFor(valueFn) {
+    const byMonth = groupSum(records, r => r.month, valueFn);
+    const monthly = MONTH_ORDER.map(m => byMonth[m] || 0);
+    const avg = monthly.reduce((a, b) => a + b, 0) / (monthly.length || 1);
+    return [...monthly, avg];
+  }
+
+  let datasets;
+  let hasData;
+  const stackedMode = false; // ทุกโหมดของกราฟนี้เป็น clustered ไม่ stack
+
+  if (metric === 'ba') {
+    const beforeData = seriesFor(r => r.before);
+    const afterData = seriesFor(r => r.after);
+    const diffData = seriesFor(r => r.diff);
+    datasets = [
+      { label: 'Before', data: beforeData, backgroundColor: CHART_COLORS.palette[2], borderColor: CHART_COLORS.palette[2], borderWidth: 1, borderRadius: 3, maxBarThickness: 26 },
+      { label: 'After', data: afterData, backgroundColor: CHART_COLORS.savings, borderColor: CHART_COLORS.savings, borderWidth: 1, borderRadius: 3, maxBarThickness: 26 },
+      { label: 'Diff', data: diffData, backgroundColor: CHART_COLORS.safety, borderColor: CHART_COLORS.safety, borderWidth: 1, borderRadius: 3, maxBarThickness: 26 }
+    ];
+    hasData = [...beforeData, ...afterData, ...diffData].some(v => v !== 0);
+  } else {
+    const data = seriesFor(metric === 'qty' ? (r => r.qty) : (r => r.cs));
+    datasets = [{
+      label: metric === 'qty' ? 'Qty' : 'CS.',
+      data,
+      backgroundColor: CHART_COLORS.savingsFaint,
+      borderColor: CHART_COLORS.savings,
+      borderWidth: 1.5,
+      borderRadius: 3,
+      maxBarThickness: 42
+    }];
+    hasData = data.some(v => v !== 0);
+  }
+
   setChartEmptyState('chart-projectlog-empty', !hasData);
 
   if (charts.projectLog) charts.projectLog.destroy();
   charts.projectLog = new Chart(canvas, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: metric === 'qty' ? 'Qty' : 'CS.',
-        data: dataValues,
-        backgroundColor: CHART_COLORS.savingsFaint,
-        borderColor: CHART_COLORS.savings,
-        borderWidth: 1.5,
-        borderRadius: 3,
-        maxBarThickness: 42
-      }]
-    },
+    data: { labels, datasets },
     plugins: [barValueLabelsPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
-        barValueLabels: { display: true, color: CHART_COLORS.text, mode: 'number' },
+        legend: {
+          display: datasets.length > 1,
+          labels: { color: CHART_COLORS.text, font: { family: "'IBM Plex Mono', monospace", size: 10.5 }, boxWidth: 12 }
+        },
+        barValueLabels: { display: datasets.length === 1, color: CHART_COLORS.text, mode: 'number' },
         tooltip: {
           backgroundColor: '#1e252b',
           borderColor: '#2a3540',
@@ -1480,16 +1587,18 @@ function renderProjectLogChart(records) {
           titleFont: { family: "'IBM Plex Mono', monospace", size: 11 },
           bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
           callbacks: {
-            label: ctx => ` ${formatNumber(ctx.parsed.y)}`
+            label: ctx => ` ${ctx.dataset.label ? ctx.dataset.label + ': ' : ''}${formatNumber(ctx.parsed.y)}`
           }
         }
       },
       scales: {
         x: {
+          stacked: stackedMode,
           grid: { color: CHART_COLORS.grid, drawTicks: false },
           ticks: { font: { size: 10.5 } }
         },
         y: {
+          stacked: stackedMode,
           grid: { color: CHART_COLORS.grid, drawTicks: false },
           ticks: { font: { size: 10.5 }, callback: v => formatNumber(v) },
           beginAtZero: true,

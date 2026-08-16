@@ -294,17 +294,17 @@ const INPUT_LINKS = [
   {
     title: 'Input Data SAP (Cost Saving)',
     desc: 'กรอกข้อมูลต้นทุน/cost saving รายเดือน',
-    url: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`
+    url: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=1556482586#gid=1556482586`
   },
   {
     title: 'Input Data Sale (ยอดขาย)',
     desc: 'กรอกยอดขายรายเดือนแต่ละ site',
-    url: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`
+    url: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=1177471239#gid=1177471239`
   },
   {
     title: 'Input Target (% Target / Commit)',
     desc: 'กำหนด % Target และ % Commit รายปี',
-    url: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`
+    url: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=1817781875#gid=1817781875`
   }
 ];
 

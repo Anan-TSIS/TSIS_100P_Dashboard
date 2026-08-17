@@ -214,7 +214,7 @@
     <section id="tab-projectlog" class="tab-panel" hidden>
       <div class="control-panel projectlog-controls">
         <div class="switch-group projectlog-search-group">
-          <label for="project-search-input">FIND (MATERIAL NAME, PROJECT NAME, ETC.)</label>
+          <label for="project-search-input">FIND (MATERIAL, MATERIAL NAME, PROJECT NAME, ETC.)</label>
           <input type="text" id="project-search-input" placeholder="พิมพ์เพื่อค้นหา…" autocomplete="off">
         </div>
         <button id="non-value-toggle-btn" class="switch-btn ghost">Project Non-value</button>
@@ -251,16 +251,17 @@
         <div class="table-scroll">
           <table id="project-table">
             <colgroup>
-              <col style="width:4%">
-              <col style="width:11%">
-              <col style="width:6%">
-              <col style="width:6%">
-              <col style="width:19%">
+              <col style="width:3%">
               <col style="width:10%">
-              <col style="width:12%">
-              <col style="width:17%">
-              <col style="width:7%">
+              <col style="width:5%">
+              <col style="width:5%">
+              <col style="width:16%">
+              <col style="width:9%">
+              <col style="width:10%">
+              <col style="width:9%">
+              <col style="width:15%">
               <col style="width:8%">
+              <col style="width:10%">
             </colgroup>
             <thead>
               <tr>
@@ -271,13 +272,14 @@
                 <th data-sort="projectName">Project Name</th>
                 <th data-sort="dept">Dept.</th>
                 <th data-sort="projectType">Type</th>
+                <th data-sort="material">Material</th>
                 <th data-sort="materialName">Material Name</th>
                 <th data-sort="totalQty" class="num">Qty</th>
                 <th data-sort="totalCs" class="num">Total CS.</th>
               </tr>
             </thead>
             <tbody id="project-table-body">
-              <tr><td colspan="10" class="table-empty">Loading data…</td></tr>
+              <tr><td colspan="11" class="table-empty">Loading data…</td></tr>
             </tbody>
           </table>
         </div>

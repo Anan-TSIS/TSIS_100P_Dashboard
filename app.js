@@ -644,7 +644,7 @@ function toNumber(v) {
 function setLoadingState() {
   document.getElementById('last-loaded').textContent = 'loading…';
   document.getElementById('project-table-body').innerHTML =
-    '<tr><td colspan="10" class="table-empty">Loading data…</td></tr>';
+    '<tr><td colspan="11" class="table-empty">Loading data…</td></tr>';
 }
 
 // ============================================================
@@ -1420,6 +1420,7 @@ function computeProjectLogRows(baseRecords) {
         projectName: r.projectName,
         dept: r.dept,
         projectType: r.projectType,
+        material: '',
         materialName: '',
         totalCs: 0,
         totalQty: 0
@@ -1428,6 +1429,7 @@ function computeProjectLogRows(baseRecords) {
     const p = projects[r.registNo];
     p.totalCs += r.cs;
     p.totalQty += r.qty;
+    if (!p.material && r.material) p.material = r.material;
     if (!p.materialName && r.materialName) p.materialName = r.materialName;
   });
 
@@ -1436,7 +1438,7 @@ function computeProjectLogRows(baseRecords) {
   const searchText = projectSearchText.trim().toLowerCase();
   if (searchText) {
     rows = rows.filter(p => {
-      const haystack = [p.registNo, p.projectName, p.dept, p.projectType, p.materialName]
+      const haystack = [p.registNo, p.projectName, p.dept, p.projectType, p.material, p.materialName]
         .map(v => String(v || '').toLowerCase())
         .join(' ');
       return haystack.includes(searchText);
@@ -1462,7 +1464,7 @@ function renderProjectTable(rows) {
   document.getElementById('table-count').textContent = `${rows.length} projects`;
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10" class="table-empty">No projects match the current filters</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="table-empty">No projects match the current filters</td></tr>';
     updateSelectAllCheckboxState(rows);
     return;
   }
@@ -1476,6 +1478,7 @@ function renderProjectTable(rows) {
       <td>${escapeHtml(p.projectName)}</td>
       <td>${escapeHtml(p.dept)}</td>
       <td>${escapeHtml(p.projectType)}</td>
+      <td class="mono">${escapeHtml(p.material)}</td>
       <td>${escapeHtml(p.materialName)}</td>
       <td class="num">${formatNumber(p.totalQty)}</td>
       <td class="num ${p.totalCs >= 0 ? 'cs-positive' : 'cs-negative'}">${formatNumber(p.totalCs)}</td>
@@ -1630,6 +1633,7 @@ function exportProjectLogToExcel() {
     'Project Name': p.projectName,
     'Dept.': p.dept,
     'Type': p.projectType,
+    'Material': p.material,
     'Material Name': p.materialName,
     'Total Qty': p.totalQty,
     'Total CS.': p.totalCs

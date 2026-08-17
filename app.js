@@ -177,8 +177,11 @@ const SIDEBAR_STORAGE_KEY = 'tsis100p-sidebar-hidden';
 function initSidebarToggle() {
   const btn = document.getElementById('sidebar-toggle-btn');
   const shell = document.querySelector('.app-shell');
-  let hidden = false;
-  try { hidden = localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1'; } catch (e) { /* ignore */ }
+  let hidden = true; // ค่าเริ่มต้น (ยังไม่เคยตั้งค่าอะไรไว้) ให้ซ่อน sidebar ไว้ก่อน
+  try {
+    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (saved !== null) hidden = saved === '1'; // ถ้าผู้ใช้เคยกดตั้งค่าไว้แล้ว ให้เคารพค่านั้นแทน
+  } catch (e) { /* ignore */ }
   applySidebarState(shell, btn, hidden);
 
   btn.addEventListener('click', () => {

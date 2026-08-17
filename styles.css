@@ -186,61 +186,15 @@ a { color: inherit; }
   padding: clamp(16px, 3vw, 28px) 12px;
   background: var(--bg);
   z-index: 30;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
-.sidebar-toolbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-  border-bottom: 2px solid var(--line);
-}
-.sidebar-toolbar .theme-toggle-btn { flex: 1; }
+/* ปุ่ม ☰ ย้ายไปอยู่ที่ header แล้ว (คลิกได้เสมอไม่ว่า sidebar จะซ่อนอยู่หรือไม่) เลย
+   ทำให้ hidden แค่ display:none ตรงๆ พอ ไม่ต้องมี hover-peek ที่ใช้บนมือถือไม่ได้อีกต่อไป */
+.app-shell.sidebar-hidden .sidebar { display: none; }
 
-.sidebar-hover-trigger { display: none; }
-
-.app-shell.sidebar-hidden .sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 220px;
-  transform: translateX(-100%);
-}
-
-.app-shell.sidebar-hidden .sidebar-hover-trigger {
-  display: block;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 14px;
-  height: 100vh;
-  z-index: 29;
-}
-
-.app-shell.sidebar-hidden .sidebar-hover-trigger:hover ~ .sidebar,
-.app-shell.sidebar-hidden .sidebar:hover {
-  transform: translateX(0);
-  box-shadow: 6px 0 20px rgba(0, 0, 0, 0.18);
-}
-
-.sidebar-link {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  text-align: left;
-  font-family: var(--font-body);
-  font-size: 13.5px;
-  font-weight: 500;
-  padding: 11px 12px;
-  border: none;
-  border-left: 3px solid transparent;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
+.sidebar-link { display: flex; align-items: baseline; gap: 8px; text-align: left; font-family: var(--font-body); font-size: 13.5px; font-weight: 500; padding: 11px 12px; border: none; border-left: 3px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text-muted); cursor: pointer; }
 .sidebar-link:hover { background: var(--hover-tint); color: var(--text-primary); }
 .sidebar-link.active {
   background: var(--panel);
@@ -272,11 +226,8 @@ main {
     overflow-x: auto;
     border-bottom: 2px solid var(--line);
   }
-  .sidebar-toolbar { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
   .sidebar-link { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
   .sidebar-link.active { border-left-color: transparent; border-bottom-color: var(--accent-safety); }
-  .app-shell.sidebar-hidden .sidebar { display: none; position: static; transform: none; }
-  .app-shell.sidebar-hidden .sidebar-hover-trigger { display: none; }
 }
 
 /* ---------- Control panel / filters ---------- */

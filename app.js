@@ -1474,17 +1474,17 @@ function renderProjectTable(rows) {
 
   tbody.innerHTML = rows.map(p => `
     <tr>
-      <td class="checkbox-col"><input type="checkbox" class="project-row-checkbox" data-registno="${escapeHtml(p.registNo)}" ${selectedProjectRegistNos.has(p.registNo) ? 'checked' : ''}></td>
-      <td class="mono">${escapeHtml(p.registNo)}</td>
-      <td>${escapeHtml(p.site)}</td>
-      <td class="mono">${escapeHtml(p.fiscalYear)}</td>
-      <td>${escapeHtml(p.projectName)}</td>
-      <td>${escapeHtml(p.dept)}</td>
-      <td>${escapeHtml(p.projectType)}</td>
-      <td class="mono">${escapeHtml(p.material)}</td>
-      <td>${escapeHtml(p.materialName)}</td>
-      <td class="num">${formatNumber(p.totalQty)}</td>
-      <td class="num ${p.totalCs >= 0 ? 'cs-positive' : 'cs-negative'}">${formatNumber(p.totalCs)}</td>
+      <td class="checkbox-col" data-label="เลือก"><input type="checkbox" class="project-row-checkbox" data-registno="${escapeHtml(p.registNo)}" ${selectedProjectRegistNos.has(p.registNo) ? 'checked' : ''}></td>
+      <td class="mono" data-label="Regist No.">${escapeHtml(p.registNo)}</td>
+      <td data-label="Site">${escapeHtml(p.site)}</td>
+      <td class="mono" data-label="FY">${escapeHtml(p.fiscalYear)}</td>
+      <td data-label="Project Name">${escapeHtml(p.projectName)}</td>
+      <td data-label="Dept.">${escapeHtml(p.dept)}</td>
+      <td data-label="Type">${escapeHtml(p.projectType)}</td>
+      <td class="mono" data-label="Material">${escapeHtml(p.material)}</td>
+      <td data-label="Material Name">${escapeHtml(p.materialName)}</td>
+      <td class="num" data-label="Qty">${formatNumber(p.totalQty)}</td>
+      <td class="num ${p.totalCs >= 0 ? 'cs-positive' : 'cs-negative'}" data-label="Total CS.">${formatNumber(p.totalCs)}</td>
     </tr>
   `).join('');
 

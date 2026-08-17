@@ -519,6 +519,51 @@ td.mono, .regist-no { font-family: var(--font-mono); color: var(--text-muted); }
 .cs-positive { color: var(--accent-savings); }
 .cs-negative { color: var(--cs-negative); }
 
+/* ---------- ตารางบนจอมือถือ: เปลี่ยนเป็นการ์ดทีละแถวแทนตารางหลายคอลัมน์ ----------
+   ตารางปกติ (หลายคอลัมน์แคบๆ) อ่านยากมากบนจอแคบ ตัวหนังสือแตกคำกลางคำ
+   บนมือถือเลยเปลี่ยนแต่ละแถวเป็นการ์ด แสดงชื่อคอลัมน์ (data-label) คู่กับค่า
+   เต็มความกว้าง ไม่ต้องบีบคอลัมน์เลย อ่านง่ายขึ้นมาก */
+@media (max-width: 680px) {
+  table { font-size: 14px; }
+  thead { display: none; }
+  table, tbody, tr, td { display: block; width: 100%; }
+  tbody tr {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    padding: 4px 12px;
+    background: var(--panel);
+  }
+  tbody tr:hover { background: var(--panel); }
+  tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    text-align: right;
+  }
+  tbody td:last-child { border-bottom: none; }
+  tbody td::before {
+    content: attr(data-label);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    text-align: left;
+    flex-shrink: 0;
+  }
+  tbody td.checkbox-col {
+    justify-content: flex-start;
+    background: var(--panel-raised);
+    margin: -4px -12px 4px;
+    padding: 8px 12px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  tbody td.checkbox-col::before { content: 'เลือกไปกราฟ'; }
+}
+
 .project-row-checkbox,
 #project-select-all-checkbox {
   width: 15px;
